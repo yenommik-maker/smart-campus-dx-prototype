@@ -76,12 +76,27 @@ function aggregateDemand(seedSurvey, mySurvey) {
 
 // 수요 기반 BUS_SCHEDULE 생성 (운영자가 노선 확정 후 사용)
 function buildScheduleFromDemand(demand) {
+  const today = new Date();
+  const daysUntilMonday = ((8 - today.getDay()) % 7) || 7;
+  const arrivalDate = new Date(today);
+  arrivalDate.setHours(12, 0, 0, 0);
+  arrivalDate.setDate(today.getDate() + daysUntilMonday);
+  const departureWednesday = new Date(arrivalDate);
+  departureWednesday.setDate(arrivalDate.getDate() + 2);
+  const departureFriday = new Date(arrivalDate);
+  departureFriday.setDate(arrivalDate.getDate() + 4);
+  const toLocalDate = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
   const dateMap = {
-    mon_am: { label: "월요일 입소", date: "2026-07-06", time: "08:00" },
-    mon_pm: { label: "월요일 입소", date: "2026-07-06", time: "10:00" },
-    wed:    { label: "수요일 퇴소", date: "2026-07-08", time: "17:00" },
-    fri_am: { label: "금요일 퇴소", date: "2026-07-10", time: "17:00" },
-    fri_pm: { label: "금요일 퇴소", date: "2026-07-10", time: "19:00" },
+    mon_am: { label: "월요일 입소", date: toLocalDate(arrivalDate), time: "08:00" },
+    mon_pm: { label: "월요일 입소", date: toLocalDate(arrivalDate), time: "10:00" },
+    wed:    { label: "수요일 퇴소", date: toLocalDate(departureWednesday), time: "17:00" },
+    fri_am: { label: "금요일 퇴소", date: toLocalDate(departureFriday), time: "17:00" },
+    fri_pm: { label: "금요일 퇴소", date: toLocalDate(departureFriday), time: "19:00" },
   };
   let idxA = 0, idxD = 0;
   const arrival = [], departure = [];
@@ -90,7 +105,7 @@ function buildScheduleFromDemand(demand) {
     if (!meta) return;
     const busCount = Math.ceil(d.count / 45);
     for (let i = 0; i < busCount; i++) {
-      const obj = { ...meta, seats: 45, booked: i === 0 ? d.count : 0 };
+      const obj = { ...meta, seats: 45, booked: Math.min(45, Math.max(0, d.count - i * 45)) };
       if (d.stop) obj[d.type === "arrival" ? "from" : "to"] = d.stop;
       if (d.type === "arrival") { obj.id = `a${++idxA}`; arrival.push(obj); }
       else { obj.id = `d${++idxD}`; departure.push(obj); }
@@ -368,7 +383,7 @@ function SeatMap({ bus, myCurrentSeat, onConfirm, onClose }) {
 }
 
 // ---------- Student view ----------
-function StudentView({ requests, onSubmit, checkedIn, onToggleCheckin, idIssued, issuedAt, busReservation, onBusReserve, onBusCancel, myRoomChoice, onPickRoom, busPhase, mySurvey, onSubmitSurvey, busSchedule, schedule }) {
+function StudentView({ requests, onSubmit, checkedIn, onToggleCheckin, idIssued, issuedAt, busReservation, onBusReserve, onBusCancel, myRoomChoice, onPickRoom, busPhase, mySurvey, myDepartSurvey, onSubmitSurvey, onSubmitDepartSurvey, busSchedule, schedule }) {
   const [tab, setTab] = useState("room");
   const [form, setForm] = useState({ open: false, type: "facility", title: "" });
   const [busTab, setBusTab] = useState("arrival");
@@ -377,6 +392,7 @@ function StudentView({ requests, onSubmit, checkedIn, onToggleCheckin, idIssued,
   const [roomPickerOpen, setRoomPickerOpen] = useState(false);
   // 수요조사 폼 state
   const [survey, setSurvey] = useState({ arrival: "", arrivalStop: "", departure: "", departureStop: "", customStop: "" });
+  const [departSurvey, setDepartSurvey] = useState({ departure: "", departureStop: "" });
 
   const navItems = [
     { key: "room", label: "내 객실", icon: BedDouble },
@@ -554,7 +570,7 @@ function StudentView({ requests, onSubmit, checkedIn, onToggleCheckin, idIssued,
           <div className="pt-2 flex flex-col" style={{ minHeight: 530 }}>
 
             {/* ── 수요조사 단계 ── */}
-            {busPhase === "survey" && (
+            {busPhase === "arrival_survey" && (
               mySurvey ? (
                 <div className="space-y-3">
                   <Eyebrow>버스 수요조사</Eyebrow>
@@ -650,8 +666,62 @@ function StudentView({ requests, onSubmit, checkedIn, onToggleCheckin, idIssued,
               )
             )}
 
+            {/* ── 퇴소 2차 수요조사 단계 ── */}
+            {busPhase === "depart_survey" && (
+              myDepartSurvey ? (
+                <div className="space-y-3">
+                  <Eyebrow>퇴소 버스 2차 수요조사</Eyebrow>
+                  <div className="bg-emerald-50 ring-1 ring-emerald-200 rounded-2xl p-4">
+                    <div className="flex items-center gap-2 text-emerald-700 text-sm font-semibold">
+                      <CheckCircle2 size={15} /> 퇴소 일정 제출 완료
+                    </div>
+                    <div className="text-xs text-emerald-600 mt-2">
+                      {DATE_OPTIONS.departure.find(d=>d.key===myDepartSurvey.departure)?.label} — {myDepartSurvey.departureStop}
+                    </div>
+                  </div>
+                  <div className="bg-amber-50 ring-1 ring-amber-200 rounded-xl p-3 text-xs text-amber-700">
+                    운영자가 최종 수요를 취합해 퇴소 노선을 확정하면 좌석 예약이 열립니다.
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <Eyebrow>퇴소 버스 2차 수요조사</Eyebrow>
+                    <div className="text-xs text-slate-400 mt-0.5">교육 종료 후 실제 퇴소 일정과 도착지를 다시 확인합니다.</div>
+                  </div>
+                  <div className="space-y-2">
+                    {DATE_OPTIONS.departure.map(opt => (
+                      <button key={opt.key} onClick={() => setDepartSurvey(s => ({ ...s, departure: opt.key }))}
+                        className={`w-full text-left text-sm px-3 py-2.5 rounded-xl ring-1 ${departSurvey.departure === opt.key ? "bg-[#173F4D] text-white ring-[#173F4D]" : "bg-white text-slate-600 ring-slate-200"}`}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                  {departSurvey.departure && (
+                    <div>
+                      <div className="text-xs font-semibold text-slate-500 mb-2">📍 퇴소 도착지</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {STOP_OPTIONS.filter(s => s !== "직접 입력").map(stop => (
+                          <button key={stop} onClick={() => setDepartSurvey(s => ({ ...s, departureStop: stop }))}
+                            className={`text-left text-xs px-3 py-2 rounded-xl ring-1 ${departSurvey.departureStop === stop ? "bg-[#173F4D] text-white ring-[#173F4D]" : "bg-white text-slate-600 ring-slate-200"}`}>
+                            {stop}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => departSurvey.departure && departSurvey.departureStop && onSubmitDepartSurvey(departSurvey)}
+                    disabled={!departSurvey.departure || !departSurvey.departureStop}
+                    className={`w-full py-2.5 rounded-xl text-sm font-semibold ${departSurvey.departure && departSurvey.departureStop ? "bg-[#173F4D] text-white" : "bg-slate-100 text-slate-300"}`}>
+                    퇴소 일정 제출
+                  </button>
+                </div>
+              )
+            )}
+
             {/* ── 노선확정 / 좌석예약 단계 ── */}
-            {busPhase === "confirmed" && (
+            {(busPhase === "arrival_confirmed" || busPhase === "all_confirmed") && (
               seatMapBus ? (
                 <SeatMap
                   bus={seatMapBus.bus}
@@ -691,7 +761,10 @@ function StudentView({ requests, onSubmit, checkedIn, onToggleCheckin, idIssued,
                   </div>
                   <Eyebrow>버스 예약</Eyebrow>
                   <div className="flex bg-slate-100 rounded-full p-0.5 mb-4 mt-1">
-                    {[{ key: "arrival", label: "입소 버스" }, { key: "departure", label: "퇴소 버스" }].map(t => (
+                    {(busPhase === "arrival_confirmed"
+                      ? [{ key: "arrival", label: "입소 버스" }]
+                      : [{ key: "arrival", label: "입소 버스" }, { key: "departure", label: "퇴소 버스" }]
+                    ).map(t => (
                       <button key={t.key} onClick={() => setBusTab(t.key)}
                         className={`flex-1 text-xs font-semibold py-1.5 rounded-full ${busTab === t.key ? "bg-[#173F4D] text-white" : "text-slate-500"}`}>
                         {t.label}
@@ -757,6 +830,11 @@ function StudentView({ requests, onSubmit, checkedIn, onToggleCheckin, idIssued,
                       · 퇴소 버스: 출발 전날 18:00 마감<br />
                       · 마감 이후 예약·변경·취소 불가
                     </div>
+                    {busPhase === "arrival_confirmed" && (
+                      <div className="bg-amber-50 ring-1 ring-amber-200 rounded-xl p-3 text-xs text-amber-700">
+                        퇴소 버스는 입소 후 운영자가 2차 수요조사를 개방하면 신청할 수 있습니다.
+                      </div>
+                    )}
                   </div>
                 </>
               )
@@ -1289,6 +1367,12 @@ function OperatorView({ requests, onAdvance, checkedIn, idIssued, issuedAt, onIs
   }, [tab, requests]);
 
   const nextStatus = { "접수": "처리중", "처리중": "완료" };
+  const busPhaseMeta = {
+    arrival_survey: { label: "입소 수요조사 중", style: "bg-amber-100 text-amber-700" },
+    arrival_confirmed: { label: "입소 노선 확정", style: "bg-sky-100 text-sky-700" },
+    depart_survey: { label: "퇴소 2차 조사 중", style: "bg-violet-100 text-violet-700" },
+    all_confirmed: { label: "전체 노선 확정", style: "bg-emerald-100 text-emerald-700" },
+  }[busPhase];
 
   return (
     <div className="flex bg-white rounded-2xl ring-1 ring-slate-200 overflow-hidden" style={{ height: 560 }}>
@@ -1420,20 +1504,20 @@ function OperatorView({ requests, onAdvance, checkedIn, idIssued, issuedAt, onIs
           <div className="p-6 w-full overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <Eyebrow>버스관리</Eyebrow>
-              <span className={`text-[11px] font-bold px-3 py-1 rounded-full ${busPhase === "survey" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>
-                {busPhase === "survey" ? "수요조사 중" : "노선 확정됨"}
+              <span className={`text-[11px] font-bold px-3 py-1 rounded-full ${busPhaseMeta?.style || "bg-slate-100 text-slate-600"}`}>
+                {busPhaseMeta?.label || busPhase}
               </span>
             </div>
 
-            {/* ── 수요조사 집계 단계 ── */}
-            {busPhase === "survey" && !scanBus && (
+            {/* ── 입소 수요조사 집계 단계 ── */}
+            {busPhase === "arrival_survey" && !scanBus && (
               <>
                 <div className="text-sm text-slate-500 mb-3">
                   현재 수요조사 참여 {aggregateDemand(SEED_SURVEY, mySurvey).length > 0 ? SEED_SURVEY.length + (mySurvey ? 1 : 0) : 0}명 응답 완료.
-                  집계 결과를 보고 노선을 확정하세요.
+                  입소 수요를 확인하고 노선을 확정하세요.
                 </div>
                 <div className="space-y-2 mb-4">
-                  {aggregateDemand(SEED_SURVEY, mySurvey).map((d, i) => {
+                  {aggregateDemand(SEED_SURVEY, mySurvey).filter(d => d.type === "arrival").map((d, i) => {
                     const dateLabel = [...DATE_OPTIONS.arrival, ...DATE_OPTIONS.departure].find(o => o.key === d.dateKey)?.label || d.dateKey;
                     const busesNeeded = Math.ceil(d.count / 45);
                     return (
@@ -1457,16 +1541,51 @@ function OperatorView({ requests, onAdvance, checkedIn, idIssued, issuedAt, onIs
                   })}
                 </div>
                 <button
-                  onClick={onConfirmRoutes}
+                  onClick={onConfirmArrival}
                   className="w-full bg-[#C8862E] text-white text-sm font-semibold rounded-xl py-3 flex items-center justify-center gap-2">
-                  <CheckCircle2 size={16} /> 수요 기반 노선 확정 및 예약 오픈
+                  <CheckCircle2 size={16} /> 입소 노선 확정 및 좌석예약 오픈
                 </button>
-                <div className="text-xs text-slate-400 mt-2 text-center">노선 확정 즉시 교육생에게 알림이 발송되고 좌석 예약이 열립니다.</div>
+                <div className="text-xs text-slate-400 mt-2 text-center">확정 즉시 교육생에게 알림이 발송됩니다.</div>
+              </>
+            )}
+
+            {/* ── 퇴소 2차 수요조사 집계 단계 ── */}
+            {busPhase === "depart_survey" && !scanBus && (
+              <>
+                <div className="text-sm text-slate-500 mb-3">
+                  퇴소 2차 수요를 확인하고 최종 노선을 확정하세요.
+                </div>
+                <div className="space-y-2 mb-4">
+                  {aggregateDemand(SEED_SURVEY, myDepartSurvey || mySurvey).filter(d => d.type === "departure").map((d, i) => {
+                    const dateLabel = DATE_OPTIONS.departure.find(o => o.key === d.dateKey)?.label || d.dateKey;
+                    const busesNeeded = Math.ceil(d.count / 45);
+                    return (
+                      <div key={i} className="bg-slate-50 ring-1 ring-slate-100 rounded-xl px-4 py-3">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="text-sm font-semibold text-slate-700">{dateLabel}</div>
+                            <div className="text-xs text-slate-400 mt-0.5">{d.stop}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-lg font-bold text-[#173F4D] font-mono">{d.count}명</div>
+                            <div className="text-[11px] text-slate-400">→ 버스 {busesNeeded}대 필요</div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <button
+                  onClick={onConfirmDeparture}
+                  className="w-full bg-[#C8862E] text-white text-sm font-semibold rounded-xl py-3 flex items-center justify-center gap-2">
+                  <CheckCircle2 size={16} /> 퇴소 노선 확정 및 좌석예약 오픈
+                </button>
+                {!myDepartSurvey && <div className="text-xs text-amber-600 mt-2 text-center">교육생 데모의 2차 응답 전에는 1차 퇴소 의향을 기준으로 집계합니다.</div>}
               </>
             )}
 
             {/* ── 노선 확정 후 예약 현황 및 탑승 확인 ── */}
-            {busPhase === "confirmed" && (
+            {(busPhase === "arrival_confirmed" || busPhase === "all_confirmed") && (
               scanBus ? (
                 <div className="flex flex-col items-center gap-4 mt-4">
                   <div className="text-sm font-semibold text-slate-700">{scanBus.label} · {scanBus.time} 탑승 확인</div>
@@ -1494,7 +1613,7 @@ function OperatorView({ requests, onAdvance, checkedIn, idIssued, issuedAt, onIs
                 </div>
               ) : (
                 <div className="space-y-4 mt-2">
-                  {["arrival", "departure"].map(type => (
+                  {(busPhase === "arrival_confirmed" ? ["arrival"] : ["arrival", "departure"]).map(type => (
                     <div key={type}>
                       <div className="text-xs font-semibold text-slate-400 mb-2">{type === "arrival" ? "▶ 입소 버스" : "▶ 퇴소 버스"}</div>
                       {(busSchedule?.[type] || []).map(bus => {
@@ -1522,6 +1641,16 @@ function OperatorView({ requests, onAdvance, checkedIn, idIssued, issuedAt, onIs
                       })}
                     </div>
                   ))}
+                  {busPhase === "arrival_confirmed" && (
+                    <div className="bg-amber-50 ring-1 ring-amber-200 rounded-xl p-4">
+                      <div className="text-sm font-semibold text-amber-800">퇴소 버스 2차 수요조사</div>
+                      <div className="text-xs text-amber-700 mt-1">입소 후 실제 퇴소 일정을 다시 확인합니다.</div>
+                      <button onClick={onOpenDepartSurvey}
+                        className="mt-3 w-full bg-[#C8862E] text-white text-sm font-semibold rounded-xl py-2.5">
+                        퇴소 2차 수요조사 오픈
+                      </button>
+                    </div>
+                  )}
                 </div>
               )
             )}
@@ -1762,7 +1891,10 @@ export default function SmartCampusPrototype() {
     setBusReservation(prev => ({ ...prev, [busId]: { seat } }));
     setBusReservations(prev => ({
       ...prev,
-      [busId]: [...(prev[busId] || []), { name: "교육생 데모", room: "215", code: "26-0612", seat }],
+      [busId]: [
+        ...(prev[busId] || []).filter(student => student.code !== "26-0612"),
+        { name: "교육생 데모", room: myRoomChoice || "215", code: "26-0612", seat },
+      ],
     }));
     pushToast(`${seat}석 버스 예약이 완료되었습니다 →`);
   }
