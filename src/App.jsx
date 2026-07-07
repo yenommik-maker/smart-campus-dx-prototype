@@ -195,6 +195,7 @@ function AdminDashboard() {
 }
 
 function AccessPage() {
+  const [notice, setNotice] = useState("");
   const rows = [
     ["1팀 과정담당", "버스관리, 공지/안내", "담당 과정", "조회·등록·확정"],
     ["2팀 객실담당", "객실관리", "전체 객실", "신청기간·자동배정·수동조정"],
@@ -204,20 +205,24 @@ function AccessPage() {
   ];
   return (
     <>
-      <PageTitle title="사용자/권한 관리" sub="담당자별 메뉴, 데이터 범위, 처리권한 설정" action={<button className="rounded-xl bg-[#173F4F] px-4 py-2 text-sm font-bold text-white">사용자 추가</button>} />
+      <PageTitle title="사용자/권한 관리" sub="담당자별 메뉴, 데이터 범위, 처리권한 설정" action={<button onClick={() => setNotice("신규 사용자 등록 화면이 열렸습니다.")} className="rounded-xl bg-[#173F4F] px-4 py-2 text-sm font-bold text-white">사용자 추가</button>} />
+      {notice && <div className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700 ring-1 ring-emerald-200">{notice}</div>}
       <Card>
-        <table className="w-full text-left text-sm"><thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="p-3">사용자</th><th className="p-3">메뉴</th><th className="p-3">데이터 범위</th><th className="p-3">처리권한</th><th className="p-3" /></tr></thead><tbody className="divide-y divide-slate-100">{rows.map((r) => <tr key={r[0]}><td className="p-3 font-bold">{r[0]}</td><td className="p-3">{r[1]}</td><td className="p-3">{r[2]}</td><td className="p-3">{r[3]}</td><td className="p-3 text-right"><button className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold">수정</button></td></tr>)}</tbody></table>
+        <table className="w-full text-left text-sm"><thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="p-3">사용자</th><th className="p-3">메뉴</th><th className="p-3">데이터 범위</th><th className="p-3">처리권한</th><th className="p-3" /></tr></thead><tbody className="divide-y divide-slate-100">{rows.map((r) => <tr key={r[0]}><td className="p-3 font-bold">{r[0]}</td><td className="p-3">{r[1]}</td><td className="p-3">{r[2]}</td><td className="p-3">{r[3]}</td><td className="p-3 text-right"><button onClick={() => setNotice(`${r[0]} 권한 수정 패널을 열었습니다.`)} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold">수정</button></td></tr>)}</tbody></table>
       </Card>
     </>
   );
 }
 
 function BusPage() {
+  const [confirmed, setConfirmed] = useState(false);
+  const [exported, setExported] = useState(false);
   return (
     <>
-      <PageTitle title="버스관리" sub={`${course.name} · ${course.period}`} action={<div className="flex gap-2"><button className="rounded-xl bg-white px-4 py-2 text-sm font-bold ring-1 ring-slate-200"><FileDown size={16} className="inline" /> 업체명단</button><button className="rounded-xl bg-[#173F4F] px-4 py-2 text-sm font-bold text-white">노선 확정</button></div>} />
-      <div className="grid gap-4 md:grid-cols-4"><KPI title="신청" value="95명" sub="자차 11명 포함" icon={Users} /><KPI title="차량" value="3대" sub="입소 기준" icon={Bus} /><KPI title="탑승완료" value="61명" sub="실시간 집계" icon={CheckCircle2} /><KPI title="미탑승" value="23명" sub="확인 필요" icon={Search} /></div>
-      <Card className="mt-5"><table className="w-full text-left text-sm"><thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="p-3">구분</th><th className="p-3">노선</th><th className="p-3">시간</th><th className="p-3">차량</th><th className="p-3">예약</th><th className="p-3">탑승</th><th className="p-3">상태</th></tr></thead><tbody className="divide-y divide-slate-100">{busRows.map((b) => <tr key={b.id}><td className="p-3 font-bold">{b.type}</td><td className="p-3">{b.route}</td><td className="p-3">{b.time}</td><td className="p-3">{b.vehicle}</td><td className="p-3">{b.reserved}/{b.seats}</td><td className="p-3">{b.boarded}</td><td className="p-3"><Badge color="green">운영중</Badge></td></tr>)}</tbody></table></Card>
+      <PageTitle title="버스관리" sub={`${course.name} · ${course.period}`} action={<div className="flex gap-2"><button onClick={() => setExported(true)} className="rounded-xl bg-white px-4 py-2 text-sm font-bold ring-1 ring-slate-200"><FileDown size={16} className="inline" /> 업체명단</button><button onClick={() => setConfirmed(true)} className="rounded-xl bg-[#173F4F] px-4 py-2 text-sm font-bold text-white">노선 확정</button></div>} />
+      {(confirmed || exported) && <div className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700 ring-1 ring-emerald-200">{confirmed ? "노선이 확정되어 좌석예약이 오픈되었습니다." : ""}{confirmed && exported ? " " : ""}{exported ? "업체 제출용 명단이 생성되었습니다." : ""}</div>}
+      <div className="grid gap-4 md:grid-cols-4"><KPI title="신청" value="95명" sub="자차 11명 포함" icon={Users} /><KPI title="차량" value={confirmed ? "4대" : "3대"} sub={confirmed ? "입·퇴소 확정" : "입소 기준"} icon={Bus} /><KPI title="탑승완료" value="61명" sub="실시간 집계" icon={CheckCircle2} /><KPI title="미탑승" value="23명" sub="확인 필요" icon={Search} /></div>
+      <Card className="mt-5"><table className="w-full text-left text-sm"><thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="p-3">구분</th><th className="p-3">노선</th><th className="p-3">시간</th><th className="p-3">차량</th><th className="p-3">예약</th><th className="p-3">탑승</th><th className="p-3">상태</th></tr></thead><tbody className="divide-y divide-slate-100">{busRows.map((b) => <tr key={b.id}><td className="p-3 font-bold">{b.type}</td><td className="p-3">{b.route}</td><td className="p-3">{b.time}</td><td className="p-3">{b.vehicle}</td><td className="p-3">{b.reserved}/{b.seats}</td><td className="p-3">{b.boarded}</td><td className="p-3"><Badge color={confirmed ? "green" : "amber"}>{confirmed ? "확정" : "검토중"}</Badge></td></tr>)}</tbody></table></Card>
     </>
   );
 }
@@ -242,7 +247,9 @@ function RoomPage() {
 }
 
 function MealPage() {
-  return <><PageTitle title="식당관리" sub="식수 인원 및 식사 확인" /><div className="grid gap-4 md:grid-cols-4"><KPI title="조식" value="92명" sub="예정" icon={Utensils} /><KPI title="중식" value="96명" sub="예정" icon={Utensils} /><KPI title="식사확인" value="8/12" sub="QR 확인" icon={QrCode} /><KPI title="특이식" value="3건" sub="알레르기 등" icon={FileText} /></div><Card className="mt-5"><table className="w-full text-left text-sm"><tbody className="divide-y divide-slate-100">{students.slice(0, 8).map((s) => <tr key={s.id}><td className="p-3 font-bold">{s.name}</td><td className="p-3">{s.dept}</td><td className="p-3">중식</td><td className="p-3">{s.meal ? <Badge color="green">확인</Badge> : <Badge color="amber">미확인</Badge>}</td></tr>)}</tbody></table></Card></>;
+  const [checked, setChecked] = useState(students.reduce((a, s) => ({ ...a, [s.id]: s.meal }), {}));
+  const checkedCount = Object.values(checked).filter(Boolean).length;
+  return <><PageTitle title="식당관리" sub="식수 인원 및 식사 확인" action={<button onClick={() => setChecked(students.reduce((a, s) => ({ ...a, [s.id]: true }), {}))} className="rounded-xl bg-[#173F4F] px-4 py-2 text-sm font-bold text-white">QR 일괄 확인</button>} /><div className="grid gap-4 md:grid-cols-4"><KPI title="조식" value="92명" sub="예정" icon={Utensils} /><KPI title="중식" value="96명" sub="예정" icon={Utensils} /><KPI title="식사확인" value={`${checkedCount}/12`} sub="QR 확인" icon={QrCode} /><KPI title="특이식" value="3건" sub="알레르기 등" icon={FileText} /></div><Card className="mt-5"><table className="w-full text-left text-sm"><tbody className="divide-y divide-slate-100">{students.slice(0, 8).map((s) => <tr key={s.id}><td className="p-3 font-bold">{s.name}</td><td className="p-3">{s.dept}</td><td className="p-3">중식</td><td className="p-3">{checked[s.id] ? <Badge color="green">확인</Badge> : <Badge color="amber">미확인</Badge>}</td><td className="p-3 text-right"><button onClick={() => setChecked({ ...checked, [s.id]: !checked[s.id] })} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold">{checked[s.id] ? "취소" : "확인"}</button></td></tr>)}</tbody></table></Card></>;
 }
 
 function FacilityPage() {
@@ -259,7 +266,9 @@ function BoardingPage() {
 
 function StudentMobile() {
   const [tab, setTab] = useState("home");
-  return <div className="mx-auto max-w-md"><div className="overflow-hidden rounded-[2rem] bg-white shadow-sm ring-1 ring-slate-200"><div className="bg-[#173F4F] p-5 text-white"><div className="text-sm text-teal-100">신임자 과정 3기</div><div className="mt-1 text-2xl font-black">교육생01</div></div><div className="p-5">{tab === "home" && <div className="grid gap-3"><KPI title="내 객실" value="201호" sub="배정 완료" icon={BedDouble} /><KPI title="입소 버스" value="광주송정역" sub="1호차 12A" icon={Bus} /><KPI title="오늘 식단" value="등록" sub="중식 12:00" icon={Utensils} /></div>}{tab === "qr" && <div className="text-center"><div className="mx-auto grid h-44 w-44 grid-cols-5 gap-1 rounded-2xl bg-slate-900 p-3">{Array.from({ length: 25 }).map((_, i) => <div key={i} className={cx("rounded-sm", [0, 2, 6, 8, 12, 16, 18, 20, 22, 24].includes(i) ? "bg-white" : "bg-slate-900")} />)}</div><div className="mt-4 font-black">모바일 학생증 QR</div><div className="text-sm text-slate-500">버스·출석·식사 확인 공통 사용</div></div>}{tab === "room" && <div><h2 className="font-black">객실 요청</h2><textarea defaultValue="동일객실: 교육생02" className="mt-3 min-h-28 w-full rounded-xl border border-slate-200 p-3" /><button className="mt-3 w-full rounded-xl bg-[#173F4F] py-3 font-bold text-white">제출</button></div>}</div><div className="grid grid-cols-3 border-t border-slate-100">{[["home", "홈"], ["room", "객실"], ["qr", "QR"]].map(([id, label]) => <button key={id} onClick={() => setTab(id)} className={cx("py-4 text-sm font-bold", tab === id ? "text-[#173F4F]" : "text-slate-400")}>{label}</button>)}</div></div></div>;
+  const [submitted, setSubmitted] = useState(false);
+  const [roomText, setRoomText] = useState("동일객실: 교육생02");
+  return <div className="mx-auto max-w-md"><div className="overflow-hidden rounded-[2rem] bg-white shadow-sm ring-1 ring-slate-200"><div className="bg-[#173F4F] p-5 text-white"><div className="text-sm text-teal-100">신임자 과정 3기</div><div className="mt-1 text-2xl font-black">교육생01</div></div><div className="p-5">{tab === "home" && <div className="grid gap-3"><KPI title="내 객실" value={submitted ? "신청완료" : "201호"} sub={submitted ? "객실담당자 검토 대기" : "배정 완료"} icon={BedDouble} /><KPI title="입소 버스" value="광주송정역" sub="1호차 12A" icon={Bus} /><KPI title="오늘 식단" value="등록" sub="중식 12:00" icon={Utensils} /></div>}{tab === "qr" && <div className="text-center"><div className="mx-auto grid h-44 w-44 grid-cols-5 gap-1 rounded-2xl bg-slate-900 p-3">{Array.from({ length: 25 }).map((_, i) => <div key={i} className={cx("rounded-sm", [0, 2, 6, 8, 12, 16, 18, 20, 22, 24].includes(i) ? "bg-white" : "bg-slate-900")} />)}</div><div className="mt-4 font-black">모바일 학생증 QR</div><div className="text-sm text-slate-500">버스·출석·식사 확인 공통 사용</div></div>}{tab === "room" && <div><h2 className="font-black">객실 요청</h2>{submitted && <div className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">객실 요청이 제출되었습니다.</div>}<textarea value={roomText} onChange={(e) => setRoomText(e.target.value)} className="mt-3 min-h-28 w-full rounded-xl border border-slate-200 p-3" /><button onClick={() => setSubmitted(true)} className="mt-3 w-full rounded-xl bg-[#173F4F] py-3 font-bold text-white">제출</button></div>}</div><div className="grid grid-cols-3 border-t border-slate-100">{[["home", "홈"], ["room", "객실"], ["qr", "QR"]].map(([id, label]) => <button key={id} onClick={() => setTab(id)} className={cx("py-4 text-sm font-bold", tab === id ? "text-[#173F4F]" : "text-slate-400")}>{label}</button>)}</div></div></div>;
 }
 
 function AppContent({ userId, page, setPage }) {
