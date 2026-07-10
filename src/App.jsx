@@ -8,7 +8,7 @@ import {
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 
 // ---------- design tokens ----------
-// ink:#1B2628  paper:#EEF1F0  primary teal:#173F4D  amber:#C8862E  sage:#3E8E76  clay:#B0473D
+// ink:#1A1A1A  paper:#FFFFFF  primary rose:#E05C7A  card:#FFF7F9  border:#F9D0D8  amber:#C8862E  sage:#3E8E76
 
 // ---------- bus schedule data ----------
 const BUS_SCHEDULE = {
@@ -52,7 +52,7 @@ function formatDeadline(bus, type) {
 }
 
 // ---------- design tokens ----------
-// ink:#1B2628  paper:#EEF1F0  primary teal:#173F4D  amber:#C8862E  sage:#3E8E76  clay:#B0473D
+// ink:#1A1A1A  paper:#FFFFFF  primary rose:#E05C7A  card:#FFF7F9  border:#F9D0D8  amber:#C8862E  sage:#3E8E76
 
 const STATUS_STYLE = {
   "접수": { bg: "bg-amber-50", text: "text-amber-700", ring: "ring-amber-200", icon: Clock },
@@ -79,7 +79,7 @@ const weeklyData = [
 ];
 
 function Eyebrow({ children, tone = "teal" }) {
-  const toneMap = { teal: "text-teal-700", amber: "text-amber-700", ink: "text-slate-500" };
+  const toneMap = { teal: "text-[#C0425E]", amber: "text-amber-700", ink: "text-slate-500" };
   return (
     <div className={`text-xs font-mono font-semibold tracking-widest uppercase ${toneMap[tone]} mb-1`}>
       {children}
@@ -101,9 +101,9 @@ function StatusBadge({ status }) {
 function IdBadge({ name = "교육생 1교시", room = "215호", code = "26-0612", issued = true, issuedAt = "" }) {
   if (!issued) {
     return (
-      <div className="relative bg-white rounded-2xl shadow-lg ring-1 ring-slate-200 overflow-hidden" style={{ width: 260 }}>
+      <div className="relative bg-white rounded-2xl shadow-lg ring-1 ring-[#F9D0D8] overflow-hidden" style={{ width: 260 }}>
         <div className="absolute left-0 right-0 top-0 flex justify-center" style={{ marginTop: -1 }}>
-          <div className="bg-[#EEF1F0] rounded-b-full" style={{ width: 56, height: 14 }} />
+          <div className="bg-[#FFF7F9] rounded-b-full" style={{ width: 56, height: 14 }} />
         </div>
         <div className="bg-slate-300 px-4 pt-5 pb-3 text-white">
           <div className="text-[10px] font-mono tracking-widest text-slate-100">SMART CAMPUS DX · ID</div>
@@ -115,23 +115,23 @@ function IdBadge({ name = "교육생 1교시", room = "215호", code = "26-0612"
             운영자의 입소 확인 후<br />학생증이 발급됩니다
           </div>
         </div>
-        <div className="border-t border-dashed border-slate-200 px-4 py-2 text-[11px] text-slate-300 font-mono text-center">
+        <div className="border-t border-dashed border-[#F9D0D8] px-4 py-2 text-[11px] text-slate-300 font-mono text-center">
           NOT ISSUED
         </div>
       </div>
     );
   }
   return (
-    <div className="relative bg-white rounded-2xl shadow-lg ring-1 ring-slate-200 overflow-hidden" style={{ width: 260 }}>
+    <div className="relative bg-white rounded-2xl shadow-lg ring-1 ring-[#F9D0D8] overflow-hidden" style={{ width: 260 }}>
       <div className="absolute left-0 right-0 top-0 flex justify-center" style={{ marginTop: -1 }}>
-        <div className="bg-[#EEF1F0] rounded-b-full" style={{ width: 56, height: 14 }} />
+        <div className="bg-[#FFF7F9] rounded-b-full" style={{ width: 56, height: 14 }} />
       </div>
-      <div className="bg-[#173F4D] px-4 pt-5 pb-3 text-white">
-        <div className="text-[10px] font-mono tracking-widest text-teal-200">SMART CAMPUS DX · ID</div>
+      <div className="bg-[#E05C7A] px-4 pt-5 pb-3 text-white">
+        <div className="text-[10px] font-mono tracking-widest text-[#F4A7B3]">SMART CAMPUS DX · ID</div>
         <div className="text-sm font-bold mt-1">{name}</div>
       </div>
       <div className="px-4 py-4 flex items-center gap-4">
-        <div className="flex items-center justify-center bg-slate-50 rounded-xl ring-1 ring-slate-200" style={{ width: 76, height: 76 }}>
+        <div className="flex items-center justify-center bg-[#FFF7F9] rounded-xl ring-1 ring-[#F9D0D8]" style={{ width: 76, height: 76 }}>
           <QrCode size={48} className="text-slate-700" />
         </div>
         <div>
@@ -140,7 +140,7 @@ function IdBadge({ name = "교육생 1교시", room = "215호", code = "26-0612"
           <div className="text-[11px] text-slate-400 font-mono mt-1">{code}</div>
         </div>
       </div>
-      <div className="border-t border-dashed border-slate-200 px-4 py-2 text-[11px] text-slate-400 font-mono text-center flex items-center justify-center gap-1">
+      <div className="border-t border-dashed border-[#F9D0D8] px-4 py-2 text-[11px] text-slate-400 font-mono text-center flex items-center justify-center gap-1">
         <ShieldCheck size={12} className="text-emerald-500" /> {issuedAt ? `발급됨 · ${issuedAt}` : "SCAN AT ENTRANCE"}
       </div>
     </div>
@@ -149,7 +149,7 @@ function IdBadge({ name = "교육생 1교시", room = "215호", code = "26-0612"
 
 function PhoneFrame({ children }) {
   return (
-    <div className="mx-auto bg-white rounded-[2rem] shadow-xl ring-1 ring-slate-200 overflow-hidden flex flex-col" style={{ width: 340, height: 620 }}>
+    <div className="mx-auto bg-white rounded-[2rem] shadow-xl ring-1 ring-[#F9D0D8] overflow-hidden flex flex-col" style={{ width: 340, height: 620 }}>
       <div className="flex items-center justify-between px-5 pt-3 pb-1 text-[11px] font-mono text-slate-400">
         <span>09:41</span>
         <span>Smart Campus DX</span>
@@ -161,7 +161,7 @@ function PhoneFrame({ children }) {
 
 function BottomNav({ items, active, onChange }) {
   return (
-    <div className="grid grid-cols-5 border-t border-slate-100 bg-white">
+    <div className="grid grid-cols-5 border-t border-[#F9D0D8] bg-white">
       {items.map((it) => {
         const Icon = it.icon;
         const isActive = active === it.key;
@@ -169,7 +169,7 @@ function BottomNav({ items, active, onChange }) {
           <button
             key={it.key}
             onClick={() => onChange(it.key)}
-            className={`flex flex-col items-center gap-1 py-2 text-[11px] ${isActive ? "text-[#173F4D]" : "text-slate-400"}`}
+            className={`flex flex-col items-center gap-1 py-2 text-[11px] ${isActive ? "text-[#E05C7A]" : "text-slate-400"}`}
           >
             <Icon size={20} strokeWidth={isActive ? 2.4 : 1.8} />
             {it.label}
@@ -215,8 +215,8 @@ function SeatMap({ bus, myCurrentSeat, onConfirm, onClose }) {
         disabled={isOcc}
         className={`w-8 h-8 rounded-lg text-[11px] font-bold flex items-center justify-center transition-all
           ${isOcc ? "bg-slate-200 text-slate-400 cursor-not-allowed" :
-            isSel ? "bg-[#173F4D] text-white ring-2 ring-[#173F4D] ring-offset-1 scale-105" :
-            "bg-white ring-1 ring-slate-200 text-slate-600 hover:ring-[#173F4D]"}`}>
+            isSel ? "bg-[#E05C7A] text-white ring-2 ring-[#E05C7A] ring-offset-1 scale-105" :
+            "bg-white ring-1 ring-[#F9D0D8] text-slate-600 hover:ring-[#E05C7A]"}`}>
         {id}
       </button>
     );
@@ -238,7 +238,7 @@ function SeatMap({ bus, myCurrentSeat, onConfirm, onClose }) {
 
       {/* bus front */}
       <div className="flex justify-center mb-3">
-        <div className="bg-[#173F4D] text-white text-[11px] font-bold rounded-xl px-6 py-2 flex items-center gap-2">
+        <div className="bg-[#E05C7A] text-white text-[11px] font-bold rounded-xl px-6 py-2 flex items-center gap-2">
           <Bus size={14} /> 앞
         </div>
       </div>
@@ -261,7 +261,7 @@ function SeatMap({ bus, myCurrentSeat, onConfirm, onClose }) {
             <SeatBtn row={r} col="A" />
             <SeatBtn row={r} col="B" />
             <div className="w-5 flex items-center justify-center">
-              <div className="h-4 border-l border-dashed border-slate-200" />
+              <div className="h-4 border-l border-dashed border-[#F9D0D8]" />
             </div>
             <SeatBtn row={r} col="C" />
             <SeatBtn row={r} col="D" />
@@ -279,11 +279,11 @@ function SeatMap({ bus, myCurrentSeat, onConfirm, onClose }) {
       </div>
 
       {/* legend */}
-      <div className="flex justify-center gap-4 py-2 border-t border-slate-100 mt-2">
+      <div className="flex justify-center gap-4 py-2 border-t border-[#F9D0D8] mt-2">
         {[
-          { color: "bg-white ring-1 ring-slate-200", label: "선택가능" },
+          { color: "bg-white ring-1 ring-[#F9D0D8]", label: "선택가능" },
           { color: "bg-slate-200", label: "예약됨" },
-          { color: "bg-[#173F4D]", label: "선택됨" },
+          { color: "bg-[#E05C7A]", label: "선택됨" },
         ].map(l => (
           <div key={l.label} className="flex items-center gap-1.5 text-[10px] text-slate-500">
             <div className={`w-4 h-4 rounded ${l.color}`} />
@@ -296,7 +296,7 @@ function SeatMap({ bus, myCurrentSeat, onConfirm, onClose }) {
       <button
         onClick={() => selected && onConfirm(selected)}
         disabled={!selected}
-        className={`mt-2 w-full py-2.5 rounded-xl text-sm font-semibold ${selected ? "bg-[#173F4D] text-white" : "bg-slate-100 text-slate-300"}`}>
+        className={`mt-2 w-full py-2.5 rounded-xl text-sm font-semibold ${selected ? "bg-[#E05C7A] text-white" : "bg-slate-100 text-slate-300"}`}>
         {selected ? `${selected}번 좌석 예약 확정` : "좌석을 선택해주세요"}
       </button>
     </div>
@@ -337,14 +337,14 @@ function StudentView({ requests, onSubmit, checkedIn, onToggleCheckin, idIssued,
 
             {myRoomChoice ? (
               <>
-                <div className="bg-[#173F4D] rounded-2xl p-4 text-white">
-                  <div className="text-xs text-teal-200 font-mono">CURRENT ROOM</div>
+                <div className="bg-[#E05C7A] rounded-2xl p-4 text-white">
+                  <div className="text-xs text-[#F4A7B3] font-mono">CURRENT ROOM</div>
                   <div className="text-3xl font-bold mt-1">{myRoomChoice}호</div>
-                  <div className="text-sm text-teal-100 mt-1 flex items-center gap-1">
+                  <div className="text-sm text-[#F4A7B3] mt-1 flex items-center gap-1">
                     <CheckCircle2 size={13} /> 본인이 직접 선택한 객실입니다
                   </div>
                 </div>
-                <div className="bg-slate-50 rounded-xl p-3 ring-1 ring-slate-100">
+                <div className="bg-[#FFF7F9] rounded-xl p-3 ring-1 ring-[#F9D0D8]">
                   <div className="text-xs text-slate-400">비품</div>
                   <div className="text-sm font-semibold text-slate-700 mt-1">수건 2 · 이불 2</div>
                 </div>
@@ -363,7 +363,7 @@ function StudentView({ requests, onSubmit, checkedIn, onToggleCheckin, idIssued,
                 <div className="text-xs text-amber-600 mt-1">{formatRoomDeadline()}까지 직접 선택하지 않으면 운영자가 자동배정합니다.</div>
                 <button
                   onClick={() => setRoomPickerOpen(true)}
-                  className="mt-3 w-full bg-[#173F4D] text-white text-sm font-semibold rounded-xl py-2.5"
+                  className="mt-3 w-full bg-[#E05C7A] text-white text-sm font-semibold rounded-xl py-2.5"
                 >
                   내 방 직접 선택하기
                 </button>
@@ -382,7 +382,7 @@ function StudentView({ requests, onSubmit, checkedIn, onToggleCheckin, idIssued,
                 <Eyebrow tone="ink">내 요청 현황</Eyebrow>
                 <div className="space-y-2">
                   {myRequests.map((r) => (
-                    <div key={r.id} className="flex items-center justify-between bg-white ring-1 ring-slate-100 rounded-lg px-3 py-2">
+                    <div key={r.id} className="flex items-center justify-between bg-white ring-1 ring-[#F9D0D8] rounded-lg px-3 py-2">
                       <div className="text-sm text-slate-600 truncate pr-2">{r.title}</div>
                       <StatusBadge status={r.status} />
                     </div>
@@ -401,8 +401,8 @@ function StudentView({ requests, onSubmit, checkedIn, onToggleCheckin, idIssued,
               { t: "11:00", n: "현장 실습 워크숍", p: "실습동 B" },
               { t: "14:00", n: "조별 발표", p: "201호 강의실" },
             ].map((s, i) => (
-              <div key={i} className="flex gap-3 bg-slate-50 rounded-xl p-3 ring-1 ring-slate-100">
-                <div className="text-sm font-mono font-semibold text-[#173F4D] w-12">{s.t}</div>
+              <div key={i} className="flex gap-3 bg-[#FFF7F9] rounded-xl p-3 ring-1 ring-[#F9D0D8]">
+                <div className="text-sm font-mono font-semibold text-[#E05C7A] w-12">{s.t}</div>
                 <div>
                   <div className="text-sm font-semibold text-slate-700">{s.n}</div>
                   <div className="text-xs text-slate-400">{s.p}</div>
@@ -424,7 +424,7 @@ function StudentView({ requests, onSubmit, checkedIn, onToggleCheckin, idIssued,
               { m: "중식", v: "12:00–13:30", f: "비빔밥 · 미역국 · 잡채" },
               { m: "석식", v: "18:00–19:30", f: "제육볶음 · 콩나물국" },
             ].map((m, i) => (
-              <div key={i} className="bg-slate-50 rounded-xl p-3 ring-1 ring-slate-100">
+              <div key={i} className="bg-[#FFF7F9] rounded-xl p-3 ring-1 ring-[#F9D0D8]">
                 <div className="flex justify-between text-sm font-semibold text-slate-700">
                   <span>{m.m}</span><span className="text-xs text-slate-400 font-mono">{m.v}</span>
                 </div>
@@ -450,27 +450,27 @@ function StudentView({ requests, onSubmit, checkedIn, onToggleCheckin, idIssued,
             ) : busQr ? (
               <div className="flex flex-col items-center gap-4 py-4">
                 <Eyebrow>탑승 확인 QR</Eyebrow>
-                <div className="bg-white rounded-2xl shadow-lg ring-1 ring-slate-200 overflow-hidden" style={{ width: 240 }}>
-                  <div className="bg-[#173F4D] px-4 py-3 text-white">
-                    <div className="text-[10px] font-mono tracking-widest text-teal-200">SMART CAMPUS DX · BUS</div>
+                <div className="bg-white rounded-2xl shadow-lg ring-1 ring-[#F9D0D8] overflow-hidden" style={{ width: 240 }}>
+                  <div className="bg-[#E05C7A] px-4 py-3 text-white">
+                    <div className="text-[10px] font-mono tracking-widest text-[#F4A7B3]">SMART CAMPUS DX · BUS</div>
                     <div className="text-sm font-bold mt-1">{busQr.label}</div>
-                    <div className="text-xs text-teal-200 mt-0.5">{busQr.date} {busQr.time}</div>
+                    <div className="text-xs text-[#F4A7B3] mt-0.5">{busQr.date} {busQr.time}</div>
                   </div>
                   <div className="px-4 py-4 flex flex-col items-center gap-3">
-                    <div className="flex items-center justify-center bg-slate-50 rounded-xl ring-1 ring-slate-200" style={{ width: 80, height: 80 }}>
+                    <div className="flex items-center justify-center bg-[#FFF7F9] rounded-xl ring-1 ring-[#F9D0D8]" style={{ width: 80, height: 80 }}>
                       <QrCode size={52} className="text-slate-700" />
                     </div>
                     <div className="text-center">
                       <div className="text-xs text-slate-400">교육생 1교시 · 215호</div>
                       {busReservation[busQr.id]?.seat && (
-                        <div className="text-lg font-bold text-[#173F4D] mt-1">
+                        <div className="text-lg font-bold text-[#E05C7A] mt-1">
                           {busReservation[busQr.id].seat}석
                         </div>
                       )}
                       <div className="text-[10px] font-mono text-slate-400 mt-0.5">26-0612</div>
                     </div>
                   </div>
-                  <div className="border-t border-dashed border-slate-200 px-3 py-2 text-[10px] text-emerald-600 font-semibold font-mono text-center flex items-center justify-center gap-1">
+                  <div className="border-t border-dashed border-[#F9D0D8] px-3 py-2 text-[10px] text-emerald-600 font-semibold font-mono text-center flex items-center justify-center gap-1">
                     <CheckCircle2 size={11} /> 탑승 시 스캔해주세요
                   </div>
                 </div>
@@ -482,7 +482,7 @@ function StudentView({ requests, onSubmit, checkedIn, onToggleCheckin, idIssued,
                 <div className="flex bg-slate-100 rounded-full p-0.5 mb-4 mt-1">
                   {[{ key: "arrival", label: "입소 버스" }, { key: "departure", label: "퇴소 버스" }].map(t => (
                     <button key={t.key} onClick={() => setBusTab(t.key)}
-                      className={`flex-1 text-xs font-semibold py-1.5 rounded-full ${busTab === t.key ? "bg-[#173F4D] text-white" : "text-slate-500"}`}>
+                      className={`flex-1 text-xs font-semibold py-1.5 rounded-full ${busTab === t.key ? "bg-[#E05C7A] text-white" : "text-slate-500"}`}>
                       {t.label}
                     </button>
                   ))}
@@ -496,25 +496,25 @@ function StudentView({ requests, onSubmit, checkedIn, onToggleCheckin, idIssued,
                     const pct = Math.round(bus.booked / bus.seats * 100);
                     const full = bus.booked >= bus.seats;
                     return (
-                      <div key={bus.id} className={`rounded-2xl ring-1 overflow-hidden ${myRes ? "ring-[#173F4D]" : "ring-slate-100"}`}>
-                        <div className={`px-4 py-3 ${myRes ? "bg-[#173F4D] text-white" : "bg-slate-50"}`}>
+                      <div key={bus.id} className={`rounded-2xl ring-1 overflow-hidden ${myRes ? "ring-[#E05C7A]" : "ring-[#F9D0D8]"}`}>
+                        <div className={`px-4 py-3 ${myRes ? "bg-[#E05C7A] text-white" : "bg-[#FFF7F9]"}`}>
                           <div className="flex justify-between items-start">
                             <div>
                               <div className={`text-sm font-bold ${myRes ? "text-white" : "text-slate-700"}`}>{bus.label}</div>
-                              <div className={`text-xs mt-0.5 ${myRes ? "text-teal-200" : "text-slate-400"}`}>
+                              <div className={`text-xs mt-0.5 ${myRes ? "text-[#F4A7B3]" : "text-slate-400"}`}>
                                 {bus.date} {bus.time} · {bus.from || bus.to}
                               </div>
                             </div>
                             <div className="text-right">
                               {myRes && <div className="text-[10px] bg-white/20 text-white font-bold px-2 py-0.5 rounded-full mb-1">예약완료</div>}
-                              {myRes?.seat && <div className="text-sm font-bold text-teal-200">{myRes.seat}석</div>}
+                              {myRes?.seat && <div className="text-sm font-bold text-[#F4A7B3]">{myRes.seat}석</div>}
                               {!myRes && full && <span className="text-[10px] bg-rose-100 text-rose-600 font-bold px-2 py-0.5 rounded-full">마감</span>}
                             </div>
                           </div>
                           <div className="mt-2">
                             <div className="flex justify-between text-[11px] mb-1">
-                              <span className={myRes ? "text-teal-200" : "text-slate-400"}>잔여 {bus.seats - bus.booked}석 / {bus.seats}석</span>
-                              <span className={myRes ? "text-teal-200" : "text-slate-400"}>{pct}%</span>
+                              <span className={myRes ? "text-[#F4A7B3]" : "text-slate-400"}>잔여 {bus.seats - bus.booked}석 / {bus.seats}석</span>
+                              <span className={myRes ? "text-[#F4A7B3]" : "text-slate-400"}>{pct}%</span>
                             </div>
                             <div className="h-1.5 rounded-full bg-white/20 overflow-hidden">
                               <div className={`h-full rounded-full ${pct > 80 ? "bg-rose-400" : "bg-emerald-400"}`} style={{ width: `${pct}%` }} />
@@ -529,7 +529,7 @@ function StudentView({ requests, onSubmit, checkedIn, onToggleCheckin, idIssued,
                           {myRes ? (
                             <div className="flex items-center gap-2">
                               <button onClick={() => setBusQr(bus)}
-                                className="text-[11px] font-semibold text-[#173F4D] bg-teal-50 ring-1 ring-teal-200 px-2 py-1 rounded-lg flex items-center gap-1">
+                                className="text-[11px] font-semibold text-[#E05C7A] bg-[#FFF7F9] ring-1 ring-[#F9D0D8] px-2 py-1 rounded-lg flex items-center gap-1">
                                 <ScanLine size={12} /> 탑승QR
                               </button>
                               {!passed && (
@@ -549,7 +549,7 @@ function StudentView({ requests, onSubmit, checkedIn, onToggleCheckin, idIssued,
                             <button
                               onClick={() => !passed && !full && setSeatMapBus({ bus, type })}
                               disabled={passed || full}
-                              className={`text-[11px] font-semibold px-3 py-1 rounded-lg ${passed || full ? "bg-slate-100 text-slate-300" : "bg-[#173F4D] text-white"}`}>
+                              className={`text-[11px] font-semibold px-3 py-1 rounded-lg ${passed || full ? "bg-slate-100 text-slate-300" : "bg-[#E05C7A] text-white"}`}>
                               {passed ? "마감됨" : full ? "만석" : "좌석 선택"}
                             </button>
                           )}
@@ -603,9 +603,9 @@ function StudentView({ requests, onSubmit, checkedIn, onToggleCheckin, idIssued,
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
               placeholder="예: 화장실 조명이 깜빡여요"
-              className="w-full border border-slate-200 rounded-lg p-2.5 text-sm h-24 resize-none focus:outline-none focus:ring-2 focus:ring-[#173F4D]"
+              className="w-full border border-[#F9D0D8] rounded-lg p-2.5 text-sm h-24 resize-none focus:outline-none focus:ring-2 focus:ring-[#E05C7A]"
             />
-            <button onClick={submit} className="mt-3 w-full bg-[#173F4D] text-white rounded-lg py-2.5 text-sm font-semibold">
+            <button onClick={submit} className="mt-3 w-full bg-[#E05C7A] text-white rounded-lg py-2.5 text-sm font-semibold">
               제출
             </button>
             <div className="text-[11px] text-slate-400 mt-2 text-center">제출하면 운영자에게 즉시 전달됩니다 →</div>
@@ -630,7 +630,7 @@ function StudentView({ requests, onSubmit, checkedIn, onToggleCheckin, idIssued,
                     key={r.no}
                     disabled={full}
                     onClick={() => { onPickRoom(r.no); setRoomPickerOpen(false); }}
-                    className={`w-full text-left rounded-xl p-3 ring-1 ${full ? "bg-slate-50 ring-slate-100 opacity-50 cursor-not-allowed" : "bg-white ring-slate-200 hover:ring-[#173F4D]"}`}
+                    className={`w-full text-left rounded-xl p-3 ring-1 ${full ? "bg-[#FFF7F9] ring-[#F9D0D8] opacity-50 cursor-not-allowed" : "bg-white ring-[#F9D0D8] hover:ring-[#E05C7A]"}`}
                   >
                     <div className="flex justify-between items-center">
                       <div className="text-sm font-bold text-slate-700">{r.no}호</div>
@@ -782,7 +782,7 @@ function RoomAssignPanel({ myRoomChoice }) {
         </div>
         <button
           onClick={() => setGroupByTeam(v => !v)}
-          className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full ring-1 ${groupByTeam ? "bg-[#173F4D] text-white ring-[#173F4D]" : "bg-white text-slate-500 ring-slate-200"}`}>
+          className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full ring-1 ${groupByTeam ? "bg-[#E05C7A] text-white ring-[#E05C7A]" : "bg-white text-slate-500 ring-[#F9D0D8]"}`}>
           {groupByTeam ? <Check size={12} /> : null} 같은 조 우선배치
         </button>
         <button onClick={run} className="ml-auto bg-amber-500 text-white text-xs font-semibold px-4 py-1.5 rounded-full">
@@ -791,7 +791,7 @@ function RoomAssignPanel({ myRoomChoice }) {
       </div>
 
       {!result && (
-        <div className="text-sm text-slate-400 bg-slate-50 ring-1 ring-slate-100 rounded-xl p-6 text-center">
+        <div className="text-sm text-slate-400 bg-[#FFF7F9] ring-1 ring-[#F9D0D8] rounded-xl p-6 text-center">
           명단 {STUDENT_ROSTER.length}명 · 객실 {ROOM_MASTER.length}개 (정원 {ROOM_MASTER.reduce((s, r) => s + r.capacity, 0)}명) 로드됨<br />
           {myRoomChoice ? `본인선택 1명(${myRoomChoice}호) 확정 · ` : ""}
           신청기간({formatRoomDeadline()}) 동안은 본인선택, 마감 후 남은 인원만 아래 버튼으로 자동배정하세요.
@@ -807,7 +807,7 @@ function RoomAssignPanel({ myRoomChoice }) {
               { l: "미배정", v: result.unassigned.length },
               { l: "사용 객실", v: `${result.roomState.filter(r => r.occupants.length > 0).length}/${ROOM_MASTER.length}` },
             ].map((k, i) => (
-              <div key={i} className="bg-slate-50 ring-1 ring-slate-100 rounded-xl p-3">
+              <div key={i} className="bg-[#FFF7F9] ring-1 ring-[#F9D0D8] rounded-xl p-3">
                 <div className="text-[11px] text-slate-400">{k.l}</div>
                 <div className="text-lg font-bold text-slate-800 font-mono mt-0.5">{k.v}</div>
               </div>
@@ -830,8 +830,8 @@ function RoomAssignPanel({ myRoomChoice }) {
                   key={r.no}
                   onClick={() => moving && canDropHere && moveStudent(r.no)}
                   className={`rounded-xl ring-1 p-3 transition-all ${
-                    moving ? (canDropHere ? "ring-amber-400 bg-amber-50 cursor-pointer" : "ring-slate-100 opacity-40") :
-                    "ring-slate-100 bg-slate-50"
+                    moving ? (canDropHere ? "ring-amber-400 bg-amber-50 cursor-pointer" : "ring-[#F9D0D8] opacity-40") :
+                    "ring-[#F9D0D8] bg-[#FFF7F9]"
                   }`}>
                   <div className="flex justify-between items-center mb-1.5">
                     <div className="font-mono text-sm font-bold text-slate-700">{r.no}호</div>
@@ -849,16 +849,16 @@ function RoomAssignPanel({ myRoomChoice }) {
                         onClick={(e) => { e.stopPropagation(); if (!o.selfPicked) setMoving(o.id === moving ? null : o.id); }}
                         disabled={o.selfPicked}
                         className={`w-full text-left text-[11px] px-2 py-1 rounded flex items-center justify-between ${
-                          o.id === moving ? "bg-[#173F4D] text-white" :
+                          o.id === moving ? "bg-[#E05C7A] text-white" :
                           o.selfPicked ? "bg-amber-50 ring-1 ring-amber-200 text-amber-700 cursor-default" :
-                          "bg-white ring-1 ring-slate-200 text-slate-600"
+                          "bg-white ring-1 ring-[#F9D0D8] text-slate-600"
                         }`}>
                         <span>{o.name} <span className="text-[9px] opacity-60">{o.team}</span></span>
                         {o.selfPicked && <span className="text-[8px] font-bold">본인선택</span>}
                       </button>
                     ))}
                     {[...Array(r.capacity - r.occupants.length)].map((_, i) => (
-                      <div key={i} className="text-[11px] px-2 py-1 rounded border border-dashed border-slate-200 text-slate-300">빈 자리</div>
+                      <div key={i} className="text-[11px] px-2 py-1 rounded border border-dashed border-[#F9D0D8] text-slate-300">빈 자리</div>
                     ))}
                   </div>
                 </div>
@@ -874,7 +874,7 @@ function RoomAssignPanel({ myRoomChoice }) {
                   <button
                     key={s.id}
                     onClick={() => setMoving(s.id === moving ? null : s.id)}
-                    className={`text-xs font-semibold px-3 py-1.5 rounded-full ring-1 ${s.id === moving ? "bg-[#173F4D] text-white ring-[#173F4D]" : "bg-rose-50 text-rose-600 ring-rose-200"}`}>
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-full ring-1 ${s.id === moving ? "bg-[#E05C7A] text-white ring-[#E05C7A]" : "bg-rose-50 text-rose-600 ring-rose-200"}`}>
                     {s.name} ({s.gender === "F" ? "여" : "남"}·{s.team})
                   </button>
                 ))}
@@ -919,8 +919,8 @@ function OperatorView({ requests, onAdvance, checkedIn, idIssued, issuedAt, onIs
   const nextStatus = { "접수": "처리중", "처리중": "완료" };
 
   return (
-    <div className="flex bg-white rounded-2xl ring-1 ring-slate-200 overflow-hidden" style={{ height: 560 }}>
-      <div className="w-20 bg-[#173F4D] flex flex-col items-center py-4 gap-1">
+    <div className="flex bg-white rounded-2xl ring-1 ring-[#F9D0D8] overflow-hidden" style={{ height: 560 }}>
+      <div className="w-20 bg-[#E05C7A] flex flex-col items-center py-4 gap-1">
         {navItems.map((it) => {
           const Icon = it.icon;
           const isActive = tab === it.key;
@@ -928,7 +928,7 @@ function OperatorView({ requests, onAdvance, checkedIn, idIssued, issuedAt, onIs
             <button
               key={it.key}
               onClick={() => { setTab(it.key); setSelected(null); }}
-              className={`relative flex flex-col items-center gap-1 w-full py-3 text-[10px] ${isActive ? "bg-white/10 text-white" : "text-teal-200"}`}
+              className={`relative flex flex-col items-center gap-1 w-full py-3 text-[10px] ${isActive ? "bg-white/10 text-white" : "text-[#F4A7B3]"}`}
             >
               <span className="relative">
                 <Icon size={18} />
@@ -947,8 +947,8 @@ function OperatorView({ requests, onAdvance, checkedIn, idIssued, issuedAt, onIs
       <div className="flex-1 flex">
         {(tab === "facility" || tab === "change") && (
           <>
-            <div className="w-72 border-r border-slate-100 overflow-y-auto">
-              <div className="px-4 py-3 border-b border-slate-100">
+            <div className="w-72 border-r border-[#F9D0D8] overflow-y-auto">
+              <div className="px-4 py-3 border-b border-[#F9D0D8]">
                 <Eyebrow>{tab === "facility" ? "시설관리 · 처리함" : "객실변경 · 처리함"}</Eyebrow>
                 <div className="text-xs text-slate-400">{list.length}건 · 미완료 {list.filter(r=>r.status!=="완료").length}건</div>
               </div>
@@ -957,7 +957,7 @@ function OperatorView({ requests, onAdvance, checkedIn, idIssued, issuedAt, onIs
                 <button
                   key={r.id}
                   onClick={() => setSelected(r)}
-                  className={`w-full text-left px-4 py-3 border-b border-slate-50 hover:bg-slate-50 ${selected?.id === r.id ? "bg-slate-50" : ""}`}
+                  className={`w-full text-left px-4 py-3 border-b border-slate-50 hover:bg-[#FFF7F9] ${selected?.id === r.id ? "bg-[#FFF7F9]" : ""}`}
                 >
                   <div className="flex justify-between items-start gap-2">
                     <div className="text-sm font-medium text-slate-700 line-clamp-2">{r.title}</div>
@@ -987,7 +987,7 @@ function OperatorView({ requests, onAdvance, checkedIn, idIssued, issuedAt, onIs
                   {nextStatus[selected.status] && (
                     <button
                       onClick={() => { onAdvance(selected.id); setSelected({ ...selected, status: nextStatus[selected.status] }); }}
-                      className="mt-6 inline-flex items-center gap-2 bg-[#173F4D] text-white rounded-lg px-4 py-2.5 text-sm font-semibold"
+                      className="mt-6 inline-flex items-center gap-2 bg-[#E05C7A] text-white rounded-lg px-4 py-2.5 text-sm font-semibold"
                     >
                       {nextStatus[selected.status]}으로 변경 <ChevronRight size={16} />
                     </button>
@@ -1018,15 +1018,15 @@ function OperatorView({ requests, onAdvance, checkedIn, idIssued, issuedAt, onIs
                     <div className="text-xs text-amber-600">215호 · 교육생 1교시 — 입소 확인 후 발급해주세요</div>
                   </div>
                 </div>
-                <button onClick={onIssueId} className="bg-[#173F4D] text-white text-xs font-semibold px-3 py-2 rounded-lg">
+                <button onClick={onIssueId} className="bg-[#E05C7A] text-white text-xs font-semibold px-3 py-2 rounded-lg">
                   학생증 발급
                 </button>
               </div>
             )}
 
-            <div className="flex items-center justify-between bg-slate-50 ring-1 ring-slate-100 rounded-xl px-4 py-3 mt-2">
+            <div className="flex items-center justify-between bg-[#FFF7F9] ring-1 ring-[#F9D0D8] rounded-xl px-4 py-3 mt-2">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#173F4D] text-white flex items-center justify-center text-xs font-bold">215</div>
+                <div className="w-10 h-10 rounded-full bg-[#E05C7A] text-white flex items-center justify-center text-xs font-bold">215</div>
                 <div>
                   <div className="text-sm font-semibold text-slate-700">교육생 1교시</div>
                   <div className="text-xs text-slate-400">
@@ -1048,14 +1048,14 @@ function OperatorView({ requests, onAdvance, checkedIn, idIssued, issuedAt, onIs
                 <div className="text-sm font-semibold text-slate-700">{scanBus.label} · {scanBus.time} 탑승 확인</div>
                 <div className="w-full space-y-2 max-h-72 overflow-y-auto">
                   {(busReservations[scanBus.id] || []).map((student, i) => (
-                    <div key={i} className="flex items-center justify-between bg-slate-50 ring-1 ring-slate-100 rounded-lg px-4 py-2.5">
+                    <div key={i} className="flex items-center justify-between bg-[#FFF7F9] ring-1 ring-[#F9D0D8] rounded-lg px-4 py-2.5">
                       <div>
                         <div className="text-sm font-semibold text-slate-700">{student.name}</div>
                         <div className="text-xs text-slate-400 font-mono">{student.room}호 · {student.code}{student.seat ? ` · ${student.seat}석` : ""}</div>
                       </div>
                       <button
                         onClick={() => setScanned(prev => ({ ...prev, [scanBus.id + "_" + i]: true }))}
-                        className={`text-xs font-semibold px-3 py-1.5 rounded-lg ${scanned[scanBus.id + "_" + i] ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200" : "bg-[#173F4D] text-white"}`}>
+                        className={`text-xs font-semibold px-3 py-1.5 rounded-lg ${scanned[scanBus.id + "_" + i] ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200" : "bg-[#E05C7A] text-white"}`}>
                         {scanned[scanBus.id + "_" + i] ? "✓ 탑승확인" : "QR 스캔"}
                       </button>
                     </div>
@@ -1078,19 +1078,19 @@ function OperatorView({ requests, onAdvance, checkedIn, idIssued, issuedAt, onIs
                       const dlText = formatDeadline(bus, type);
                       const count = (busReservations[bus.id] || []).length;
                       return (
-                        <div key={bus.id} className="bg-slate-50 ring-1 ring-slate-100 rounded-xl px-4 py-3 mb-2">
+                        <div key={bus.id} className="bg-[#FFF7F9] ring-1 ring-[#F9D0D8] rounded-xl px-4 py-3 mb-2">
                           <div className="flex justify-between items-start">
                             <div>
                               <div className="text-sm font-semibold text-slate-700">{bus.date} {bus.time}</div>
                               <div className="text-xs text-slate-400 mt-0.5">{bus.from || bus.to}</div>
                             </div>
                             <div className="text-right">
-                              <div className="text-sm font-bold text-[#173F4D]">{count}명 예약</div>
+                              <div className="text-sm font-bold text-[#E05C7A]">{count}명 예약</div>
                               <div className={`text-[11px] mt-0.5 ${passed ? "text-rose-500" : "text-slate-400"}`}>{dlText}</div>
                             </div>
                           </div>
                           <button onClick={() => setScanBus({ ...bus, type })}
-                            className="mt-2 w-full text-xs font-semibold bg-[#173F4D] text-white rounded-lg py-2 flex items-center justify-center gap-1.5">
+                            className="mt-2 w-full text-xs font-semibold bg-[#E05C7A] text-white rounded-lg py-2 flex items-center justify-center gap-1.5">
                             <ScanLine size={13} /> 탑승 확인 시작
                           </button>
                         </div>
@@ -1123,13 +1123,13 @@ function AdminView({ requests, checkedIn }) {
   const total = 120;
 
   return (
-    <div className="bg-white rounded-2xl ring-1 ring-slate-200 p-6" style={{ minHeight: 560 }}>
+    <div className="bg-white rounded-2xl ring-1 ring-[#F9D0D8] p-6" style={{ minHeight: 560 }}>
       <div className="flex gap-1 mb-6 bg-slate-100 rounded-full p-1 w-fit">
         {navItems.map((it) => {
           const Icon = it.icon; const active = tab === it.key;
           return (
             <button key={it.key} onClick={() => setTab(it.key)}
-              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium ${active ? "bg-[#173F4D] text-white" : "text-slate-500"}`}>
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium ${active ? "bg-[#E05C7A] text-white" : "text-slate-500"}`}>
               <Icon size={14} /> {it.label}
             </button>
           );
@@ -1145,7 +1145,7 @@ function AdminView({ requests, checkedIn }) {
               { l: "진행중", v: inProgress, s: "대기·처리중" },
               { l: "긴급건", v: requests.filter(r=>r.urgent && r.status!=="완료").length, s: "즉시 대응 필요" },
             ].map((k, i) => (
-              <div key={i} className="bg-slate-50 ring-1 ring-slate-100 rounded-xl p-4">
+              <div key={i} className="bg-[#FFF7F9] ring-1 ring-[#F9D0D8] rounded-xl p-4">
                 <div className="text-xs text-slate-400">{k.l}</div>
                 <div className="text-2xl font-bold text-slate-800 font-mono mt-1">{k.v}</div>
                 <div className="text-[11px] text-slate-400 mt-1">{k.s}</div>
@@ -1155,7 +1155,7 @@ function AdminView({ requests, checkedIn }) {
           <Eyebrow tone="ink">최근 처리 현황</Eyebrow>
           <div className="space-y-2 mt-2">
             {requests.map((r) => (
-              <div key={r.id} className="flex justify-between items-center text-sm bg-slate-50 rounded-lg px-3 py-2">
+              <div key={r.id} className="flex justify-between items-center text-sm bg-[#FFF7F9] rounded-lg px-3 py-2">
                 <span className="text-slate-600">{r.room}호 · {r.title}</span>
                 <StatusBadge status={r.status} />
               </div>
@@ -1170,11 +1170,11 @@ function AdminView({ requests, checkedIn }) {
           <div style={{ height: 260 }} className="mt-3">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={weeklyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#EEF1F0" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#F9D0D8" />
                 <XAxis dataKey="day" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip />
-                <Line type="monotone" dataKey="count" stroke="#173F4D" strokeWidth={2.5} dot={{ r: 4 }} />
+                <Line type="monotone" dataKey="count" stroke="#E05C7A" strokeWidth={2.5} dot={{ r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -1215,7 +1215,7 @@ function AdminView({ requests, checkedIn }) {
                 formula: "체크인 인원 ÷ 전체 정원",
               },
             ].map((k, i) => (
-              <div key={i} className="bg-slate-50 ring-1 ring-slate-100 rounded-xl p-4">
+              <div key={i} className="bg-[#FFF7F9] ring-1 ring-[#F9D0D8] rounded-xl p-4">
                 <div className="flex items-center justify-between">
                   <div className="text-xs text-slate-400">{k.label}</div>
                   {k.ok
@@ -1224,7 +1224,7 @@ function AdminView({ requests, checkedIn }) {
                 </div>
                 <div className="text-2xl font-bold text-slate-800 font-mono mt-1">{k.value}</div>
                 <div className="text-[11px] text-slate-500 mt-1">{k.target}</div>
-                <div className="text-[10px] text-slate-400 mt-2 border-t border-slate-200 pt-2">{k.formula}</div>
+                <div className="text-[10px] text-slate-400 mt-2 border-t border-[#F9D0D8] pt-2">{k.formula}</div>
               </div>
             ))}
           </div>
@@ -1233,7 +1233,7 @@ function AdminView({ requests, checkedIn }) {
           <div style={{ height: 240 }} className="mt-3">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={kpiCompareData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#EEF1F0" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#F9D0D8" />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 12 }} domain={[0, 100]} ticks={[0,25,50,75,100]} allowDataOverflow />
                 <Tooltip />
@@ -1249,7 +1249,7 @@ function AdminView({ requests, checkedIn }) {
       {tab === "report" && (
         <div>
           <Eyebrow tone="ink">자동 생성 보고서 미리보기</Eyebrow>
-          <div className="bg-slate-50 ring-1 ring-slate-100 rounded-xl p-5 mt-3 text-sm text-slate-600 leading-relaxed font-mono">
+          <div className="bg-[#FFF7F9] ring-1 ring-[#F9D0D8] rounded-xl p-5 mt-3 text-sm text-slate-600 leading-relaxed font-mono">
             <div className="text-slate-800 font-bold mb-2">2026-06-29 일일 운영 보고</div>
             · 금일 접수 {requests.length}건 / 완료 {completed}건 / 진행중 {inProgress}건<br/>
             · 입소율 {Math.round(occupied/total*100)}% ({occupied}/{total}명)<br/>
@@ -1375,18 +1375,18 @@ export default function SmartCampusPrototype() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#EEF1F0] py-8 px-4">
+    <div className="min-h-screen bg-white py-8 px-4">
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <div className="text-xs font-mono tracking-widest text-teal-700 font-semibold">SMART CAMPUS DX</div>
+            <div className="text-xs font-mono tracking-widest text-[#C0425E] font-semibold">SMART CAMPUS DX</div>
             <div className="text-xl font-bold text-slate-800 mt-0.5">연수원 통합 운영 플랫폼 · 클릭형 프로토타입</div>
           </div>
           <div className="flex items-center gap-3">
             <div className="relative">
               <button
                 onClick={() => setBellOpen((v) => !v)}
-                className="relative w-10 h-10 rounded-full bg-white ring-1 ring-slate-200 flex items-center justify-center text-slate-600"
+                className="relative w-10 h-10 rounded-full bg-white ring-1 ring-[#F9D0D8] flex items-center justify-center text-slate-600"
               >
                 {unreadCount > 0 ? <BellRing size={18} className="text-amber-600" /> : <Bell size={18} />}
                 {unreadCount > 0 && (
@@ -1396,15 +1396,15 @@ export default function SmartCampusPrototype() {
                 )}
               </button>
               {bellOpen && (
-                <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl ring-1 ring-slate-200 overflow-hidden z-40">
-                  <div className="px-4 py-2.5 border-b border-slate-100 text-xs font-semibold text-slate-500">알림</div>
+                <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl ring-1 ring-[#F9D0D8] overflow-hidden z-40">
+                  <div className="px-4 py-2.5 border-b border-[#F9D0D8] text-xs font-semibold text-slate-500">알림</div>
                   {notifications.length === 0 && <div className="px-4 py-6 text-sm text-slate-400 text-center">알림이 없습니다</div>}
                   <div className="max-h-72 overflow-y-auto">
                     {notifications.map((n) => (
                       <button
                         key={n.id}
                         onClick={() => openNotification(n)}
-                        className={`w-full text-left px-4 py-3 border-b border-slate-50 hover:bg-slate-50 ${!n.read ? "bg-amber-50/50" : ""}`}
+                        className={`w-full text-left px-4 py-3 border-b border-slate-50 hover:bg-[#FFF7F9] ${!n.read ? "bg-amber-50/50" : ""}`}
                       >
                         <div className="flex justify-between items-start gap-2">
                           <span className="text-xs font-semibold text-slate-400">{n.role === "operator" ? "운영자" : "관리자"} 알림</span>
@@ -1417,10 +1417,10 @@ export default function SmartCampusPrototype() {
                 </div>
               )}
             </div>
-            <div className="flex bg-white ring-1 ring-slate-200 rounded-full p-1">
+            <div className="flex bg-white ring-1 ring-[#F9D0D8] rounded-full p-1">
               {roles.map((r) => (
                 <button key={r.key} onClick={() => setRole(r.key)}
-                  className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-colors ${role === r.key ? "bg-[#173F4D] text-white" : "text-slate-500"}`}>
+                  className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-colors ${role === r.key ? "bg-[#E05C7A] text-white" : "text-slate-500"}`}>
                   {r.label}
                 </button>
               ))}
@@ -1475,7 +1475,7 @@ export default function SmartCampusPrototype() {
 
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex flex-col gap-2 z-50">
         {toasts.map((t) => (
-          <div key={t.id} className="bg-[#173F4D] text-white text-sm font-medium px-4 py-2.5 rounded-full shadow-lg">
+          <div key={t.id} className="bg-[#E05C7A] text-white text-sm font-medium px-4 py-2.5 rounded-full shadow-lg">
             {t.text}
           </div>
         ))}
