@@ -2,7 +2,7 @@ name: Deploy Smart Campus DX prototype
 
 on:
   push:
-    branches: ["main", "pink-style"]
+    branches: ["pink-style"]
   workflow_dispatch:
 
 permissions:
