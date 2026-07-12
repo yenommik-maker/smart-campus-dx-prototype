@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   BedDouble, CalendarDays, Utensils, Bell, QrCode, ClipboardList, Repeat2,
   LogIn, Wrench, MessageSquareWarning, Activity, BarChart3, Target, FileText,
@@ -6,6 +6,18 @@ import {
   TrendingUp, TrendingDown, Lock, ShieldCheck, Bus, ScanLine, CalendarX, CheckCircle2
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
+import { doc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
+import { db } from "./firebase";
+
+// ---------- persistence ----------
+// single shared document holds all cross-role state (bus reservations, room assignment, schedule)
+const STATE_DOC = doc(db, "smartCampusState", "shared");
+const DEFAULT_SCHEDULE = [
+  { t: "09:00", n: "디지털 행정혁신 이론", p: "201호 강의실" },
+  { t: "11:00", n: "현장 실습 워크숍", p: "실습동 B" },
+  { t: "14:00", n: "조별 발표", p: "201호 강의실" },
+];
+const DEFAULT_BUS_RESERVATIONS = { a1: [], a2: [], d1: [], d2: [], d3: [] };
 
 // ---------- design tokens ----------
 // ink:#1A1A1A  paper:#FFFFFF  primary rose:#E05C7A  card:#FFF7F9  border:#F9D0D8  amber:#C8862E  sage:#3E8E76
@@ -149,7 +161,7 @@ function IdBadge({ name = "교육생 1교시", room = "215호", code = "26-0612"
 
 function PhoneFrame({ children }) {
   return (
-    <div className="mx-auto bg-white rounded-[2rem] shadow-xl ring-1 ring-[#F9D0D8] overflow-hidden flex flex-col" style={{ width: 340, height: 620 }}>
+    <div className="mx-auto w-full bg-white rounded-[2rem] shadow-xl ring-1 ring-[#F9D0D8] overflow-hidden flex flex-col" style={{ maxWidth: 340, height: 620 }}>
       <div className="flex items-center justify-between px-5 pt-3 pb-1 text-[11px] font-mono text-slate-400">
         <span>09:41</span>
         <span>Smart Campus DX</span>
@@ -304,7 +316,7 @@ function SeatMap({ bus, myCurrentSeat, onConfirm, onClose }) {
 }
 
 // ---------- Student view ----------
-function StudentView({ requests, onSubmit, checkedIn, onToggleCheckin, idIssued, issuedAt, busReservation, onBusReserve, onBusCancel, myRoomChoice, onPickRoom }) {
+function StudentView({ requests, onSubmit, checkedIn, onToggleCheckin, idIssued, issuedAt, busReservation, onBusReserve, onBusCancel, myRoomChoice, onPickRoom, schedule }) {
   const [tab, setTab] = useState("room");
   const [form, setForm] = useState({ open: false, type: "facility", title: "" });
   const [busTab, setBusTab] = useState("arrival");
@@ -396,11 +408,7 @@ function StudentView({ requests, onSubmit, checkedIn, onToggleCheckin, idIssued,
         {tab === "schedule" && (
           <div className="pt-2 space-y-3">
             <Eyebrow>내 일정</Eyebrow>
-            {[
-              { t: "09:00", n: "디지털 행정혁신 이론", p: "201호 강의실" },
-              { t: "11:00", n: "현장 실습 워크숍", p: "실습동 B" },
-              { t: "14:00", n: "조별 발표", p: "201호 강의실" },
-            ].map((s, i) => (
+            {schedule.map((s, i) => (
               <div key={i} className="flex gap-3 bg-[#FFF7F9] rounded-xl p-3 ring-1 ring-[#F9D0D8]">
                 <div className="text-sm font-mono font-semibold text-[#E05C7A] w-12">{s.t}</div>
                 <div>
@@ -588,7 +596,7 @@ function StudentView({ requests, onSubmit, checkedIn, onToggleCheckin, idIssued,
           </div>
         )}
       </PhoneFrame>
-      <div style={{ width: 340 }} className="mx-auto">
+      <div style={{ maxWidth: 340 }} className="mx-auto w-full">
         <BottomNav items={navItems} active={tab} onChange={setTab} />
       </div>
 
@@ -733,39 +741,37 @@ function autoAssignRooms(students, rooms, groupByTeam, locked = {}) {
   return { roomState, unassigned };
 }
 
-function RoomAssignPanel({ myRoomChoice }) {
+function RoomAssignPanel({ myRoomChoice, roomAssignment, onRoomAssignmentChange }) {
   const [groupByTeam, setGroupByTeam] = useState(true);
-  const [result, setResult] = useState(null);
   const [moving, setMoving] = useState(null); // student id being relocated
+  const result = roomAssignment;
 
   function run() {
     const locked = myRoomChoice ? { 0: myRoomChoice } : {};
-    setResult(autoAssignRooms(STUDENT_ROSTER, ROOM_MASTER, groupByTeam, locked));
+    onRoomAssignmentChange(autoAssignRooms(STUDENT_ROSTER, ROOM_MASTER, groupByTeam, locked));
     setMoving(null);
   }
 
   function moveStudent(roomNo) {
     if (!moving || !result) return;
-    setResult(prev => {
-      const roomState = prev.roomState.map(r => ({ ...r, occupants: [...r.occupants] }));
-      let student = null;
-      roomState.forEach(r => {
-        const idx = r.occupants.findIndex(o => o.id === moving);
-        if (idx >= 0) { student = r.occupants[idx]; r.occupants.splice(idx, 1); }
-      });
-      let unassigned = prev.unassigned.filter(s => s.id !== moving);
-      if (!student) {
-        student = prev.unassigned.find(s => s.id === moving);
-      }
-      const target = roomState.find(r => r.no === roomNo);
-      if (target && student && target.occupants.length < target.capacity && (target.gender === null || target.gender === student.gender)) {
-        if (target.gender === null) target.gender = student.gender;
-        target.occupants.push(student);
-      } else if (student) {
-        unassigned = [...unassigned, student];
-      }
-      return { roomState, unassigned };
+    const roomState = result.roomState.map(r => ({ ...r, occupants: [...r.occupants] }));
+    let student = null;
+    roomState.forEach(r => {
+      const idx = r.occupants.findIndex(o => o.id === moving);
+      if (idx >= 0) { student = r.occupants[idx]; r.occupants.splice(idx, 1); }
     });
+    let unassigned = result.unassigned.filter(s => s.id !== moving);
+    if (!student) {
+      student = result.unassigned.find(s => s.id === moving);
+    }
+    const target = roomState.find(r => r.no === roomNo);
+    if (target && student && target.occupants.length < target.capacity && (target.gender === null || target.gender === student.gender)) {
+      if (target.gender === null) target.gender = student.gender;
+      target.occupants.push(student);
+    } else if (student) {
+      unassigned = [...unassigned, student];
+    }
+    onRoomAssignmentChange({ roomState, unassigned });
     setMoving(null);
   }
 
@@ -888,7 +894,7 @@ function RoomAssignPanel({ myRoomChoice }) {
 }
 
 // ---------- Operator view ----------
-function OperatorView({ requests, onAdvance, checkedIn, idIssued, issuedAt, onIssueId, focusRequest, clearFocus, busReservations, myRoomChoice }) {
+function OperatorView({ requests, onAdvance, checkedIn, idIssued, issuedAt, onIssueId, focusRequest, clearFocus, busReservations, myRoomChoice, roomAssignment, onRoomAssignmentChange }) {
   const [tab, setTab] = useState("facility");
   const [selected, setSelected] = useState(null);
   const [scanBus, setScanBus] = useState(null);
@@ -1003,7 +1009,13 @@ function OperatorView({ requests, onAdvance, checkedIn, idIssued, issuedAt, onIs
           </>
         )}
 
-        {tab === "assign" && <RoomAssignPanel myRoomChoice={myRoomChoice} />}
+        {tab === "assign" && (
+          <RoomAssignPanel
+            myRoomChoice={myRoomChoice}
+            roomAssignment={roomAssignment}
+            onRoomAssignmentChange={onRoomAssignmentChange}
+          />
+        )}
 
         {tab === "checkinout" && (
           <div className="p-6 w-full">
@@ -1263,8 +1275,13 @@ function AdminView({ requests, checkedIn }) {
   );
 }
 
+const MOBILE_BREAKPOINT = 768;
+
 export default function SmartCampusPrototype() {
   const [role, setRole] = useState("student");
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.innerWidth <= MOBILE_BREAKPOINT
+  );
   const [requests, setRequests] = useState(seedRequests);
   const [checkedIn, setCheckedIn] = useState(false);
   const [hintOpen, setHintOpen] = useState(true);
@@ -1274,32 +1291,81 @@ export default function SmartCampusPrototype() {
   const [toasts, setToasts] = useState([]);
   const [bellOpen, setBellOpen] = useState(false);
   const [pendingFocus, setPendingFocus] = useState(null);
-  // busReservation: { [busId]: boolean } — student's own reservations
+  // busReservation: { [busId]: boolean } — student's own reservations (persisted in Firestore)
   const [busReservation, setBusReservation] = useState({});
-  // busReservations: { [busId]: [{name, room, code}] } — all reservations for operator
-  const [busReservations, setBusReservations] = useState({ a1: [], a2: [], d1: [], d2: [], d3: [] });
+  // busReservations: { [busId]: [{name, room, code}] } — all reservations for operator (persisted in Firestore)
+  const [busReservations, setBusReservations] = useState(DEFAULT_BUS_RESERVATIONS);
   const [myRoomChoice, setMyRoomChoice] = useState(null);
+  const [roomAssignment, setRoomAssignment] = useState(null);
+  const [schedule, setSchedule] = useState(DEFAULT_SCHEDULE);
+  const [dataLoaded, setDataLoaded] = useState(false);
+
+  useEffect(() => {
+    function handleResize() {
+      setIsMobile(window.innerWidth <= MOBILE_BREAKPOINT);
+    }
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (isMobile) setRole("student");
+  }, [isMobile]);
+
+  // subscribe to shared Firestore state so reservations/assignments/schedule survive refresh
+  useEffect(() => {
+    const unsubscribe = onSnapshot(STATE_DOC, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        setBusReservation(data.busReservation || {});
+        setBusReservations(data.busReservations || DEFAULT_BUS_RESERVATIONS);
+        setMyRoomChoice(data.myRoomChoice ?? null);
+        setRoomAssignment(data.roomAssignment ?? null);
+        setSchedule(data.schedule || DEFAULT_SCHEDULE);
+      } else {
+        setDoc(STATE_DOC, {
+          busReservation: {},
+          busReservations: DEFAULT_BUS_RESERVATIONS,
+          myRoomChoice: null,
+          roomAssignment: null,
+          schedule: DEFAULT_SCHEDULE,
+        });
+      }
+      setDataLoaded(true);
+    });
+    return () => unsubscribe();
+  }, []);
 
   function handlePickRoom(roomNo) {
-    setMyRoomChoice(roomNo);
+    updateDoc(STATE_DOC, { myRoomChoice: roomNo });
     pushToast(`${roomNo}호를 선택했습니다 →`);
   }
 
+  function handleRoomAssignmentChange(next) {
+    updateDoc(STATE_DOC, { roomAssignment: next });
+  }
+
   function handleBusReserve(busId, type, seat) {
-    setBusReservation(prev => ({ ...prev, [busId]: { seat } }));
-    setBusReservations(prev => ({
-      ...prev,
-      [busId]: [...(prev[busId] || []), { name: "교육생 1교시", room: "215", code: "26-0612", seat }],
-    }));
+    const nextReservation = { ...busReservation, [busId]: { seat } };
+    const nextReservations = {
+      ...busReservations,
+      [busId]: [
+        ...(busReservations[busId] || []).filter((s) => s.code !== "26-0612"),
+        { name: "교육생 1교시", room: "215", code: "26-0612", seat },
+      ],
+    };
+    updateDoc(STATE_DOC, { busReservation: nextReservation, busReservations: nextReservations });
     pushToast(`${seat}석 버스 예약이 완료되었습니다 →`);
   }
 
   function handleBusCancel(busId) {
-    setBusReservation(prev => { const n = { ...prev }; delete n[busId]; return n; });
-    setBusReservations(prev => ({
-      ...prev,
-      [busId]: (prev[busId] || []).filter(s => s.code !== "26-0612"),
-    }));
+    const nextReservation = { ...busReservation };
+    delete nextReservation[busId];
+    const nextReservations = {
+      ...busReservations,
+      [busId]: (busReservations[busId] || []).filter((s) => s.code !== "26-0612"),
+    };
+    updateDoc(STATE_DOC, { busReservation: nextReservation, busReservations: nextReservations });
     pushToast("예약이 취소되었습니다.");
   }
 
@@ -1373,11 +1439,12 @@ export default function SmartCampusPrototype() {
     { key: "operator", label: "운영자" },
     { key: "admin", label: "관리자" },
   ];
+  const visibleRoles = isMobile ? roles.filter((r) => r.key === "student") : roles;
 
   return (
     <div className="min-h-screen bg-white py-8 px-4">
       <div className="max-w-5xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
           <div>
             <div className="text-xs font-mono tracking-widest text-[#C0425E] font-semibold">SMART CAMPUS DX</div>
             <div className="text-xl font-bold text-slate-800 mt-0.5">연수원 통합 운영 플랫폼 · 클릭형 프로토타입</div>
@@ -1418,8 +1485,8 @@ export default function SmartCampusPrototype() {
               )}
             </div>
             <div className="flex bg-white ring-1 ring-[#F9D0D8] rounded-full p-1">
-              {roles.map((r) => (
-                <button key={r.key} onClick={() => setRole(r.key)}
+              {visibleRoles.map((r) => (
+                <button key={r.key} onClick={() => !isMobile && setRole(r.key)}
                   className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-colors ${role === r.key ? "bg-[#E05C7A] text-white" : "text-slate-500"}`}>
                   {r.label}
                 </button>
@@ -1439,7 +1506,13 @@ export default function SmartCampusPrototype() {
           </div>
         )}
 
-        {role === "student" && (
+        {!dataLoaded && (
+          <div className="flex items-center justify-center py-24 text-sm text-slate-400">
+            Firebase에서 데이터를 불러오는 중…
+          </div>
+        )}
+
+        {dataLoaded && role === "student" && (
           <StudentView
             requests={requests}
             onSubmit={handleSubmit}
@@ -1452,9 +1525,10 @@ export default function SmartCampusPrototype() {
             onBusCancel={handleBusCancel}
             myRoomChoice={myRoomChoice}
             onPickRoom={handlePickRoom}
+            schedule={schedule}
           />
         )}
-        {role === "operator" && (
+        {dataLoaded && role === "operator" && (
           <OperatorView
             requests={requests}
             onAdvance={handleAdvance}
@@ -1466,9 +1540,11 @@ export default function SmartCampusPrototype() {
             clearFocus={() => setPendingFocus(null)}
             busReservations={busReservations}
             myRoomChoice={myRoomChoice}
+            roomAssignment={roomAssignment}
+            onRoomAssignmentChange={handleRoomAssignmentChange}
           />
         )}
-        {role === "admin" && (
+        {dataLoaded && role === "admin" && (
           <AdminView requests={requests} checkedIn={checkedIn} />
         )}
       </div>
