@@ -2,7 +2,7 @@ name: Deploy Smart Campus DX prototype
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "pink-style"]
   workflow_dispatch:
 
 permissions:
@@ -18,22 +18,49 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout main
         uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main-src
+
+      - name: Checkout pink-style
+        uses: actions/checkout@v4
+        with:
+          ref: pink-style
+          path: pink-style-src
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Install dependencies
-        run: npm install
-      - name: Build
-        run: npm run build
+
+      - name: Install & build main
+        working-directory: main-src
+        run: |
+          npm install
+          npm run build
+
+      - name: Install & build pink-style
+        working-directory: pink-style-src
+        run: |
+          npm install
+          npm run build -- --base=/smart-campus-dx-prototype/pink-style/
+
+      - name: Combine builds
+        run: |
+          mkdir -p combined
+          cp -r main-src/dist/. combined/
+          mkdir -p combined/pink-style
+          cp -r pink-style-src/dist/. combined/pink-style/
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./dist
+          path: ./combined
 
   deploy:
     environment:
