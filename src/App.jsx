@@ -1,13 +1,15 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   BedDouble, CalendarDays, Utensils, Bell, QrCode, ClipboardList, Repeat2,
   LogIn, Wrench, MessageSquareWarning, Activity, BarChart3, Target, FileText,
   ChevronRight, Check, Clock, AlertCircle, Sparkles, X, BellRing, UserPlus,
-  TrendingUp, TrendingDown, Lock, ShieldCheck, Bus, ScanLine, CalendarX, CheckCircle2
+  TrendingUp, TrendingDown, Lock, ShieldCheck, Bus, ScanLine, CalendarX, CheckCircle2,
+  Settings2, Copy, Upload, ChevronUp, ChevronDown, Download
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 import { doc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "./firebase";
+import { PDFDocument } from "pdf-lib";
 
 // ---------- persistence ----------
 // single shared document holds all cross-role state (bus reservations, room assignment, schedule)
@@ -893,6 +895,346 @@ function RoomAssignPanel({ myRoomChoice, roomAssignment, onRoomAssignmentChange 
   );
 }
 
+// ---------- Operation prep: schedule converter ----------
+// tab-separated input: 반 · 시작시간 · 종료시간 · 과목명 · 강의실
+function stripClassSuffix(label) {
+  return label.trim().replace(/반$/, "");
+}
+
+function parseScheduleInput(raw) {
+  const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
+  const rows = [];
+  let skipped = 0;
+  for (const line of lines) {
+    const parts = line.split("\t").map((p) => p.trim());
+    if (parts.length !== 5 || parts.some((p) => !p)) {
+      skipped++;
+      continue;
+    }
+    const [cls, start, end, subject, room] = parts;
+    rows.push({ cls, start, end, subject, room });
+  }
+  return { rows, skipped };
+}
+
+function mergeSchedule(rows) {
+  const groups = new Map();
+  for (const r of rows) {
+    const key = `${r.start}|${r.end}|${r.subject}`;
+    if (!groups.has(key)) {
+      groups.set(key, { start: r.start, end: r.end, subject: r.subject, classes: [], rooms: [] });
+    }
+    const g = groups.get(key);
+    if (!g.classes.includes(r.cls)) g.classes.push(r.cls);
+    if (!g.rooms.includes(r.room)) g.rooms.push(r.room);
+  }
+  const merged = Array.from(groups.values()).map((g) => ({
+    classLabel: g.classes.map(stripClassSuffix).join("+") + "반",
+    start: g.start,
+    end: g.end,
+    subject: g.subject,
+    room: g.rooms.join("/"),
+    isMerged: g.classes.length > 1,
+  }));
+  merged.sort((a, b) => (a.start === b.start ? a.end.localeCompare(b.end) : a.start.localeCompare(b.start)));
+  return merged;
+}
+
+function ScheduleConverter() {
+  const [raw, setRaw] = useState("");
+  const [copyState, setCopyState] = useState("idle"); // idle | copied | manual
+  const outputRef = useRef(null);
+
+  const { rows, skipped } = useMemo(() => parseScheduleInput(raw), [raw]);
+  const merged = useMemo(() => mergeSchedule(rows), [rows]);
+  const outputText = useMemo(
+    () => merged.map((m) => [m.classLabel, m.start, m.end, m.subject, m.room].join("\t")).join("\n"),
+    [merged]
+  );
+
+  function flashCopyState(state) {
+    setCopyState(state);
+    setTimeout(() => setCopyState("idle"), 2000);
+  }
+
+  function fallbackCopy() {
+    const el = outputRef.current;
+    if (!el) return;
+    el.select();
+    let ok = false;
+    try {
+      ok = document.execCommand("copy");
+    } catch {
+      ok = false;
+    }
+    flashCopyState(ok ? "copied" : "manual");
+  }
+
+  function handleCopy() {
+    if (!outputText) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(outputText).then(() => flashCopyState("copied"), fallbackCopy);
+    } else {
+      fallbackCopy();
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <Eyebrow tone="ink">A/B반 시간표 붙여넣기</Eyebrow>
+        <div className="text-xs text-slate-400 mb-2">탭 구분 형식: 반 · 시작시간 · 종료시간 · 과목명 · 강의실 (한 줄에 한 과목)</div>
+        <textarea
+          value={raw}
+          onChange={(e) => setRaw(e.target.value)}
+          placeholder={"A반\t09:00\t10:30\t디지털 행정혁신 이론\t201호\nB반\t09:00\t10:30\t디지털 행정혁신 이론\t201호"}
+          className="w-full h-32 border border-[#F9D0D8] rounded-lg p-3 text-xs font-mono resize-none focus:outline-none focus:ring-2 focus:ring-[#E05C7A]"
+        />
+        {skipped > 0 && (
+          <div className="text-[11px] text-amber-600 mt-1">형식이 맞지 않아 무시된 줄 {skipped}개 (탭 구분 5개 항목이어야 합니다)</div>
+        )}
+      </div>
+
+      {merged.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <Eyebrow tone="ink">합반 결과 ({merged.length}건)</Eyebrow>
+            <button
+              onClick={handleCopy}
+              className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#E05C7A] px-3 py-1.5 rounded-lg"
+            >
+              <Copy size={13} /> {copyState === "copied" ? "복사됨!" : "복사"}
+            </button>
+          </div>
+          {copyState === "manual" && (
+            <div className="text-[11px] text-amber-600 mb-2">
+              자동 복사가 지원되지 않는 환경입니다. 아래 결과가 자동 선택되었으니 Ctrl+C로 복사해주세요.
+            </div>
+          )}
+          <div className="border border-[#F9D0D8] rounded-lg overflow-hidden">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-[#FFF7F9] text-slate-500">
+                  <th className="text-left px-3 py-2 font-semibold">반</th>
+                  <th className="text-left px-3 py-2 font-semibold">시작</th>
+                  <th className="text-left px-3 py-2 font-semibold">종료</th>
+                  <th className="text-left px-3 py-2 font-semibold">과목</th>
+                  <th className="text-left px-3 py-2 font-semibold">강의실</th>
+                </tr>
+              </thead>
+              <tbody>
+                {merged.map((m, i) => (
+                  <tr key={i} className="border-t border-[#F9D0D8]">
+                    <td className="px-3 py-2 font-semibold">
+                      {m.classLabel}
+                      {m.isMerged && (
+                        <span className="ml-1.5 text-[10px] font-bold text-white bg-[#E05C7A] px-1.5 py-0.5 rounded">
+                          합반
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 font-mono">{m.start}</td>
+                    <td className="px-3 py-2 font-mono">{m.end}</td>
+                    <td className="px-3 py-2">{m.subject}</td>
+                    <td className="px-3 py-2 text-slate-500">{m.room}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <textarea
+            ref={outputRef}
+            readOnly
+            value={outputText}
+            className="w-full h-24 mt-2 border border-[#F9D0D8] rounded-lg p-3 text-xs font-mono resize-none bg-[#FFF7F9] text-slate-500"
+          />
+        </div>
+      )}
+
+      {!raw && (
+        <div className="text-sm text-slate-400 bg-[#FFF7F9] ring-1 ring-[#F9D0D8] rounded-xl p-6 text-center">
+          위 입력창에 기획자가 만든 A/B반 시간표를 붙여넣으면 같은 시간대·같은 과목명이 자동으로 합반 처리됩니다.
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------- Operation prep: PDF merge tool ----------
+function PdfMergeTool() {
+  const [files, setFiles] = useState([]);
+  const [dragOver, setDragOver] = useState(false);
+  const [merging, setMerging] = useState(false);
+  const [error, setError] = useState("");
+  const [downloadUrl, setDownloadUrl] = useState(null);
+  const fileInputRef = useRef(null);
+
+  function addFiles(fileList) {
+    const pdfs = Array.from(fileList).filter(
+      (f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")
+    );
+    if (pdfs.length === 0) return;
+    setFiles((prev) => [...prev, ...pdfs.map((file) => ({ id: `${Date.now()}_${Math.random()}`, file }))]);
+    setDownloadUrl(null);
+    setError("");
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    setDragOver(false);
+    addFiles(e.dataTransfer.files);
+  }
+
+  function moveFile(index, dir) {
+    setFiles((prev) => {
+      const next = [...prev];
+      const target = index + dir;
+      if (target < 0 || target >= next.length) return prev;
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
+
+  function removeFile(id) {
+    setFiles((prev) => prev.filter((f) => f.id !== id));
+    setDownloadUrl(null);
+  }
+
+  async function handleMerge() {
+    if (files.length === 0) return;
+    setMerging(true);
+    setError("");
+    try {
+      const mergedPdf = await PDFDocument.create();
+      for (const { file } of files) {
+        const bytes = await file.arrayBuffer();
+        const src = await PDFDocument.load(bytes);
+        const pages = await mergedPdf.copyPages(src, src.getPageIndices());
+        pages.forEach((p) => mergedPdf.addPage(p));
+      }
+      const mergedBytes = await mergedPdf.save();
+      const blob = new Blob([mergedBytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      setDownloadUrl(url);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "합본.pdf";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (err) {
+      setError("PDF 병합 중 오류가 발생했습니다. 손상되지 않은 PDF 파일인지 확인해주세요.");
+    } finally {
+      setMerging(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
+        onClick={() => fileInputRef.current?.click()}
+        className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
+          dragOver ? "border-[#E05C7A] bg-[#FFF7F9]" : "border-[#F9D0D8]"
+        }`}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/pdf"
+          multiple
+          className="hidden"
+          onChange={(e) => addFiles(e.target.files)}
+        />
+        <Upload size={22} className="mx-auto text-[#E05C7A] mb-2" />
+        <div className="text-sm font-semibold text-slate-700">PDF 파일을 드래그하거나 클릭해서 업로드</div>
+        <div className="text-xs text-slate-400 mt-1">여러 개 선택 가능</div>
+      </div>
+
+      {files.length > 0 && (
+        <div className="space-y-2">
+          {files.map((f, i) => (
+            <div key={f.id} className="flex items-center justify-between bg-[#FFF7F9] ring-1 ring-[#F9D0D8] rounded-lg px-3 py-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <FileText size={15} className="text-[#E05C7A] shrink-0" />
+                <span className="text-sm text-slate-700 truncate">{i + 1}. {f.file.name}</span>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button onClick={() => moveFile(i, -1)} disabled={i === 0}
+                  className="p-1 rounded text-slate-500 disabled:text-slate-200 hover:bg-white">
+                  <ChevronUp size={15} />
+                </button>
+                <button onClick={() => moveFile(i, 1)} disabled={i === files.length - 1}
+                  className="p-1 rounded text-slate-500 disabled:text-slate-200 hover:bg-white">
+                  <ChevronDown size={15} />
+                </button>
+                <button onClick={() => removeFile(f.id)} className="p-1 rounded text-rose-500 hover:bg-white">
+                  <X size={15} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {error && (
+        <div className="text-xs text-rose-600 bg-rose-50 ring-1 ring-rose-200 rounded-lg px-3 py-2">{error}</div>
+      )}
+
+      <button
+        onClick={handleMerge}
+        disabled={files.length === 0 || merging}
+        className={`w-full flex items-center justify-center gap-2 text-sm font-semibold rounded-xl py-2.5 ${
+          files.length === 0 || merging ? "bg-slate-100 text-slate-300" : "bg-[#E05C7A] text-white"
+        }`}
+      >
+        {merging ? "합본 생성 중…" : (
+          <>
+            <FileText size={16} /> 합본 PDF 생성
+          </>
+        )}
+      </button>
+
+      {downloadUrl && (
+        <a
+          href={downloadUrl}
+          download="합본.pdf"
+          className="flex items-center justify-center gap-2 text-sm font-semibold text-[#E05C7A] bg-[#FFF7F9] ring-1 ring-[#F9D0D8] rounded-xl py-2.5"
+        >
+          <Download size={16} /> 다시 다운로드
+        </a>
+      )}
+    </div>
+  );
+}
+
+// ---------- Operation prep panel (운영준비) ----------
+function OperationPrepPanel() {
+  const [subTab, setSubTab] = useState("schedule");
+  return (
+    <div className="p-6 w-full overflow-y-auto">
+      <Eyebrow>운영준비</Eyebrow>
+      <div className="flex bg-slate-100 rounded-full p-0.5 mb-4 mt-1 w-fit">
+        {[
+          { key: "schedule", label: "시간표 변환기" },
+          { key: "pdf", label: "PDF 합본" },
+        ].map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setSubTab(t.key)}
+            className={`text-xs font-semibold px-4 py-1.5 rounded-full ${subTab === t.key ? "bg-[#E05C7A] text-white" : "text-slate-500"}`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {subTab === "schedule" ? <ScheduleConverter /> : <PdfMergeTool />}
+    </div>
+  );
+}
+
 // ---------- Operator view ----------
 function OperatorView({ requests, onAdvance, checkedIn, idIssued, issuedAt, onIssueId, focusRequest, clearFocus, busReservations, myRoomChoice, roomAssignment, onRoomAssignmentChange }) {
   const [tab, setTab] = useState("facility");
@@ -914,6 +1256,7 @@ function OperatorView({ requests, onAdvance, checkedIn, idIssued, issuedAt, onIs
     { key: "checkinout", label: "입퇴실", icon: LogIn, badge: idIssued ? 0 : 1 },
     { key: "facility", label: "시설관리", icon: Wrench, badge: requests.filter(r => r.type === "facility" && r.status === "접수").length },
     { key: "bus", label: "버스관리", icon: Bus },
+    { key: "prep", label: "운영준비", icon: Settings2 },
   ];
 
   const list = useMemo(() => {
@@ -1114,6 +1457,8 @@ function OperatorView({ requests, onAdvance, checkedIn, idIssued, issuedAt, onIs
             )}
           </div>
         )}
+
+        {tab === "prep" && <OperationPrepPanel />}
       </div>
     </div>
   );
