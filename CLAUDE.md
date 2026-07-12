@@ -54,3 +54,9 @@ React(JSX) + Tailwind CSS + recharts 단일 파일 구조. GitHub Pages 배포.
 ## 환급/비환급 QR 분기
 - 환급 → 파란색 고용보험 출결 QR
 - 비환급 → 회색 자체 출결 QR
+
+## 작업 규칙
+- 모든 파일 수정·생성·삭제 자동 허용 (확인 없이 진행)
+- npm install 자동 허용
+- git add, commit, push 자동 허용
+- 파일 덮어쓰기 자동 허용
