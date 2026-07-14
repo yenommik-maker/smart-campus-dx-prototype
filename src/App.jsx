@@ -5,8 +5,11 @@ import {
   Bus,
   CalendarDays,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   ClipboardCheck,
   Copy,
+  Download,
   FileDown,
   FileText,
   Home,
@@ -17,10 +20,13 @@ import {
   Settings2,
   ShieldCheck,
   Smartphone,
-  Utensils,
+  Upload,
   Users,
+  Utensils,
   Wrench,
+  X,
 } from "lucide-react";
+import { PDFDocument } from "pdf-lib";
 
 const cx = (...v) => v.filter(Boolean).join(" ");
 
@@ -466,11 +472,142 @@ function ScheduleConverter() {
   );
 }
 
+// ---------- 운영준비: PDF 합본 도구 ----------
+function PdfMergeTool() {
+  const [files, setFiles] = useState([]);
+  const [dragOver, setDragOver] = useState(false);
+  const [merging, setMerging] = useState(false);
+  const [error, setError] = useState("");
+  const [downloadUrl, setDownloadUrl] = useState(null);
+  const fileInputRef = useRef(null);
+
+  function addFiles(fileList) {
+    const pdfs = Array.from(fileList).filter(
+      (f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")
+    );
+    if (pdfs.length === 0) return;
+    setFiles((prev) => [...prev, ...pdfs.map((file) => ({ id: `${Date.now()}_${Math.random()}`, file }))]);
+    setDownloadUrl(null);
+    setError("");
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    setDragOver(false);
+    addFiles(e.dataTransfer.files);
+  }
+
+  function moveFile(index, dir) {
+    setFiles((prev) => {
+      const next = [...prev];
+      const target = index + dir;
+      if (target < 0 || target >= next.length) return prev;
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
+
+  function removeFile(id) {
+    setFiles((prev) => prev.filter((f) => f.id !== id));
+    setDownloadUrl(null);
+  }
+
+  async function handleMerge() {
+    if (files.length === 0) return;
+    setMerging(true);
+    setError("");
+    try {
+      const mergedPdf = await PDFDocument.create();
+      for (const { file } of files) {
+        const bytes = await file.arrayBuffer();
+        const src = await PDFDocument.load(bytes);
+        const pages = await mergedPdf.copyPages(src, src.getPageIndices());
+        pages.forEach((p) => mergedPdf.addPage(p));
+      }
+      const mergedBytes = await mergedPdf.save();
+      const blob = new Blob([mergedBytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      setDownloadUrl(url);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "합본.pdf";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (err) {
+      setError("PDF 병합 중 오류가 발생했습니다. 손상되지 않은 PDF 파일인지 확인해주세요.");
+    } finally {
+      setMerging(false);
+    }
+  }
+
+  return (
+    <Card>
+      <h2 className="mb-1 font-black">PDF 합본</h2>
+      <p className="mb-3 text-xs text-slate-500">여러 PDF를 순서대로 하나로 합쳐 다운로드합니다.</p>
+      <div
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
+        onClick={() => fileInputRef.current?.click()}
+        className={cx("cursor-pointer rounded-xl border-2 border-dashed p-8 text-center transition-colors", dragOver ? "border-[#173F4F] bg-slate-50" : "border-slate-200")}
+      >
+        <input ref={fileInputRef} type="file" accept="application/pdf" multiple className="hidden" onChange={(e) => addFiles(e.target.files)} />
+        <Upload size={22} className="mx-auto mb-2 text-[#173F4F]" />
+        <div className="text-sm font-bold text-slate-700">PDF 파일을 드래그하거나 클릭해서 업로드</div>
+        <div className="mt-1 text-xs text-slate-400">여러 개 선택 가능</div>
+      </div>
+
+      {files.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {files.map((f, i) => (
+            <div key={f.id} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 ring-1 ring-slate-100">
+              <div className="flex min-w-0 items-center gap-2">
+                <FileText size={15} className="shrink-0 text-[#173F4F]" />
+                <span className="truncate text-sm text-slate-700">{i + 1}. {f.file.name}</span>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <button onClick={() => moveFile(i, -1)} disabled={i === 0} className="rounded p-1 text-slate-500 hover:bg-white disabled:text-slate-200"><ChevronUp size={15} /></button>
+                <button onClick={() => moveFile(i, 1)} disabled={i === files.length - 1} className="rounded p-1 text-slate-500 hover:bg-white disabled:text-slate-200"><ChevronDown size={15} /></button>
+                <button onClick={() => removeFile(f.id)} className="rounded p-1 text-rose-500 hover:bg-white"><X size={15} /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {error && <div className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs font-bold text-rose-600 ring-1 ring-rose-200">{error}</div>}
+
+      <button
+        onClick={handleMerge}
+        disabled={files.length === 0 || merging}
+        className={cx("mt-4 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold text-white", files.length === 0 || merging ? "bg-slate-300" : "bg-[#173F4F]")}
+      >
+        {merging ? "합본 생성 중…" : <><FileText size={16} /> 합본 PDF 생성</>}
+      </button>
+
+      {downloadUrl && (
+        <a href={downloadUrl} download="합본.pdf" className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-slate-50 py-2.5 text-sm font-bold text-[#173F4F] ring-1 ring-slate-200">
+          <Download size={16} /> 다시 다운로드
+        </a>
+      )}
+    </Card>
+  );
+}
+
 function OperationPrepPage() {
+  const [subTab, setSubTab] = useState("schedule");
   return (
     <>
-      <PageTitle title="운영준비" sub="A/B반 시간표 붙여넣기 → 같은 시간대·같은 과목명 자동 합반 병합" />
-      <ScheduleConverter />
+      <PageTitle title="운영준비" sub="시간표 병합과 PDF 합본을 한 곳에서 처리합니다" />
+      <div className="mb-4 flex w-fit rounded-full bg-slate-100 p-0.5">
+        {[["schedule", "시간표 변환기"], ["pdf", "PDF 합본"]].map(([key, label]) => (
+          <button key={key} onClick={() => setSubTab(key)} className={cx("rounded-full px-4 py-1.5 text-xs font-bold", subTab === key ? "bg-[#173F4F] text-white" : "text-slate-500")}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {subTab === "schedule" ? <ScheduleConverter /> : <PdfMergeTool />}
     </>
   );
 }
