@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   Bell,
   BedDouble,
@@ -6,6 +6,7 @@ import {
   CalendarDays,
   CheckCircle2,
   ClipboardCheck,
+  Copy,
   FileDown,
   FileText,
   Home,
@@ -13,6 +14,7 @@ import {
   Menu,
   QrCode,
   Search,
+  Settings2,
   ShieldCheck,
   Smartphone,
   Utensils,
@@ -192,7 +194,7 @@ function TopBar({ userId, setUserId, unread, onBell }) {
 function Sidebar({ userId, page, setPage }) {
   const menusByUser = {
     admin: [["dashboard", "대시보드", Home], ["access", "권한관리", ShieldCheck]],
-    course: [["bus", "버스관리", Bus], ["notice", "공지/안내", FileText]],
+    course: [["bus", "버스관리", Bus], ["notice", "공지/안내", FileText], ["prep", "운영준비", Settings2]],
     room: [["room", "객실관리", BedDouble]],
     meal: [["meal", "식당관리", Utensils]],
     facility: [["facility", "시설처리", Wrench]],
@@ -300,7 +302,7 @@ function AdminDashboard({ busRows, roomOpen, notices, scheduleRows, mealMenu, fa
 
 function AccessPage() {
   const [notice, setNotice] = useState("");
-  const rows = [["과정담당자", "버스관리, 공지/안내", "담당 과정", "노선확정·공지작성·시간표업로드"], ["객실담당자", "객실관리", "전체 객실", "신청기간·자동배정·수동조정"], ["식당담당자", "식당관리", "식당 운영", "식단표업로드·식수확인"], ["시설담당자", "시설처리", "담당 분야 신고", "접수·처리중·완료 변경"], ["버스 인솔자", "탑승확인", "배정 차량", "QR·수동체크"]];
+  const rows = [["과정담당자", "버스관리, 공지/안내, 운영준비", "담당 과정", "노선확정·공지작성·시간표업로드·시간표합반"], ["객실담당자", "객실관리", "전체 객실", "신청기간·자동배정·수동조정"], ["식당담당자", "식당관리", "식당 운영", "식단표업로드·식수확인"], ["시설담당자", "시설처리", "담당 분야 신고", "접수·처리중·완료 변경"], ["버스 인솔자", "탑승확인", "배정 차량", "QR·수동체크"]];
   return <><PageTitle title="사용자/권한 관리" sub="담당자별 메뉴, 데이터 범위, 처리권한 설정" action={<button onClick={() => setNotice("신규 사용자 등록 화면이 열렸습니다.")} className="rounded-xl bg-[#173F4F] px-4 py-2 text-sm font-bold text-white">사용자 추가</button>} />{notice && <div className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700 ring-1 ring-emerald-200">{notice}</div>}<Card><table className="w-full text-left text-sm"><thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="p-3">사용자</th><th className="p-3">메뉴</th><th className="p-3">데이터 범위</th><th className="p-3">처리권한</th><th className="p-3" /></tr></thead><tbody className="divide-y divide-slate-100">{rows.map((r) => <tr key={r[0]}><td className="p-3 font-bold">{r[0]}</td><td className="p-3">{r[1]}</td><td className="p-3">{r[2]}</td><td className="p-3">{r[3]}</td><td className="p-3 text-right"><button onClick={() => setNotice(`${r[0]} 권한 수정 패널을 열었습니다.`)} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold">수정</button></td></tr>)}</tbody></table></Card></>;
 }
 
@@ -320,6 +322,155 @@ function BusPage({ busRows, setBusRows, setNotices }) {
       <div className="grid gap-4 md:grid-cols-4"><KPI title="수요조사" value="95명" sub="자차 11명 포함" icon={Users} /><KPI title="차량" value="4대" sub="입·퇴소 포함" icon={Bus} /><KPI title="탑승완료" value={`${busRows.reduce((a,b)=>a+b.boarded,0)}명`} sub="실시간 집계" icon={CheckCircle2} /><KPI title="미탑승" value="23명" sub="확인 필요" icon={Search} /></div>
       <Card className="mt-5"><table className="w-full text-left text-sm"><thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="p-3">구분</th><th className="p-3">노선</th><th className="p-3">요일</th><th className="p-3">확정시간</th><th className="p-3">차량</th><th className="p-3">예약</th><th className="p-3">상태</th></tr></thead><tbody className="divide-y divide-slate-100">{busRows.map((b) => <tr key={b.id}><td className="p-3 font-bold">{b.type}</td><td className="p-3">{b.route}</td><td className="p-3">{b.day}</td><td className="p-3">{b.time}</td><td className="p-3">{b.vehicle}</td><td className="p-3">{b.reserved}/{b.seats}</td><td className="p-3"><Badge color={b.status === "확정" ? "green" : "amber"}>{b.status}</Badge></td></tr>)}</tbody></table></Card>
       {vendorOpen && <Card className="mt-5"><div className="mb-4 flex items-center justify-between"><div><h2 className="font-black">업체 제출용 명단 미리보기</h2><p className="mt-1 text-xs text-slate-500">엑셀/CSV 다운로드 시 노선별 탑승자 명단으로 생성되는 형식</p></div><Badge color="blue">CSV 생성</Badge></div><table className="w-full text-left text-sm"><thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="p-3">노선</th><th className="p-3">요일</th><th className="p-3">차량</th><th className="p-3">성명</th><th className="p-3">소속</th><th className="p-3">연락처</th><th className="p-3">좌석</th><th className="p-3">탑승</th></tr></thead><tbody className="divide-y divide-slate-100">{vendorList.map((s) => <tr key={s.id}><td className="p-3">{s.bus}</td><td className="p-3">{s.day}</td><td className="p-3">{s.bus === "광주송정역" ? "1호차" : s.bus === "부산역" ? "2호차" : "3호차"}</td><td className="p-3 font-bold">{s.name}</td><td className="p-3">{s.dept}</td><td className="p-3">{s.phone}</td><td className="p-3">{s.seat}</td><td className="p-3"><Badge color={s.boarded ? "green" : "amber"}>{s.boarded ? "탑승" : "미탑승"}</Badge></td></tr>)}</tbody></table></Card>}
+    </>
+  );
+}
+
+// ---------- 운영준비: 시간표 병합(합반) 변환기 ----------
+// 탭 구분 입력: 반 · 시작시간 · 종료시간 · 과목명 · 강의실
+function stripClassSuffix(label) {
+  return label.trim().replace(/반$/, "");
+}
+
+function parseScheduleInput(raw) {
+  const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
+  const rows = [];
+  let skipped = 0;
+  for (const line of lines) {
+    const parts = line.split("\t").map((p) => p.trim());
+    if (parts.length !== 5 || parts.some((p) => !p)) {
+      skipped++;
+      continue;
+    }
+    const [cls, start, end, subject, room] = parts;
+    rows.push({ cls, start, end, subject, room });
+  }
+  return { rows, skipped };
+}
+
+function mergeSchedule(rows) {
+  const groups = new Map();
+  for (const r of rows) {
+    const key = `${r.start}|${r.end}|${r.subject}`;
+    if (!groups.has(key)) {
+      groups.set(key, { start: r.start, end: r.end, subject: r.subject, classes: [], rooms: [] });
+    }
+    const g = groups.get(key);
+    if (!g.classes.includes(r.cls)) g.classes.push(r.cls);
+    if (!g.rooms.includes(r.room)) g.rooms.push(r.room);
+  }
+  const merged = Array.from(groups.values()).map((g) => ({
+    classLabel: g.classes.map(stripClassSuffix).join("+") + "반",
+    start: g.start,
+    end: g.end,
+    subject: g.subject,
+    room: g.rooms.join("/"),
+    isMerged: g.classes.length > 1,
+  }));
+  merged.sort((a, b) => (a.start === b.start ? a.end.localeCompare(b.end) : a.start.localeCompare(b.start)));
+  return merged;
+}
+
+function ScheduleConverter() {
+  const [raw, setRaw] = useState("");
+  const [copyState, setCopyState] = useState("idle"); // idle | copied | manual
+  const outputRef = useRef(null);
+
+  const { rows, skipped } = useMemo(() => parseScheduleInput(raw), [raw]);
+  const merged = useMemo(() => mergeSchedule(rows), [rows]);
+  const outputText = useMemo(
+    () => merged.map((m) => [m.classLabel, m.start, m.end, m.subject, m.room].join("\t")).join("\n"),
+    [merged]
+  );
+
+  function flashCopyState(state) {
+    setCopyState(state);
+    setTimeout(() => setCopyState("idle"), 2000);
+  }
+
+  function fallbackCopy() {
+    const el = outputRef.current;
+    if (!el) return;
+    el.select();
+    let ok = false;
+    try {
+      ok = document.execCommand("copy");
+    } catch {
+      ok = false;
+    }
+    flashCopyState(ok ? "copied" : "manual");
+  }
+
+  function handleCopy() {
+    if (!outputText) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(outputText).then(() => flashCopyState("copied"), fallbackCopy);
+    } else {
+      fallbackCopy();
+    }
+  }
+
+  return (
+    <Card>
+      <h2 className="mb-1 font-black">A/B반 시간표 병합</h2>
+      <p className="mb-3 text-xs text-slate-500">탭 구분 형식: 반 · 시작시간 · 종료시간 · 과목명 · 강의실 (한 줄에 한 과목)</p>
+      <textarea
+        value={raw}
+        onChange={(e) => setRaw(e.target.value)}
+        placeholder={"A반\t09:00\t10:30\t디지털 행정혁신 이론\t201호\nB반\t09:00\t10:30\t디지털 행정혁신 이론\t201호"}
+        className="h-32 w-full rounded-xl border border-slate-200 p-3 text-xs font-mono outline-none focus:ring-2 focus:ring-[#173F4F]"
+      />
+      {skipped > 0 && (
+        <div className="mt-1 text-xs font-bold text-amber-600">형식이 맞지 않아 무시된 줄 {skipped}개 (탭 구분 5개 항목이어야 합니다)</div>
+      )}
+
+      {merged.length > 0 && (
+        <div className="mt-4">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-black">합반 결과 ({merged.length}건)</h3>
+            <button onClick={handleCopy} className="flex items-center gap-1.5 rounded-lg bg-[#173F4F] px-3 py-1.5 text-xs font-bold text-white">
+              <Copy size={13} /> {copyState === "copied" ? "복사됨!" : "복사"}
+            </button>
+          </div>
+          {copyState === "manual" && (
+            <div className="mb-2 text-xs font-bold text-amber-600">
+              자동 복사가 지원되지 않는 환경입니다. 아래 결과가 자동 선택되었으니 Ctrl+C로 복사해주세요.
+            </div>
+          )}
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50 text-xs text-slate-500">
+              <tr><th className="p-3">반</th><th className="p-3">시작</th><th className="p-3">종료</th><th className="p-3">과목</th><th className="p-3">강의실</th></tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {merged.map((m, i) => (
+                <tr key={i}>
+                  <td className="p-3 font-bold">{m.classLabel}{m.isMerged && <span className="ml-1.5"><Badge color="blue">합반</Badge></span>}</td>
+                  <td className="p-3 font-mono">{m.start}</td>
+                  <td className="p-3 font-mono">{m.end}</td>
+                  <td className="p-3">{m.subject}</td>
+                  <td className="p-3 text-slate-500">{m.room}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <textarea ref={outputRef} readOnly value={outputText} className="mt-2 h-24 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-mono text-slate-500" />
+        </div>
+      )}
+
+      {!raw && (
+        <div className="mt-4 rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-400 ring-1 ring-slate-100">
+          위 입력창에 A/B반 시간표를 붙여넣으면 같은 시간대·같은 과목명이 자동으로 합반 처리됩니다.
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function OperationPrepPage() {
+  return (
+    <>
+      <PageTitle title="운영준비" sub="A/B반 시간표 붙여넣기 → 같은 시간대·같은 과목명 자동 합반 병합" />
+      <ScheduleConverter />
     </>
   );
 }
@@ -563,7 +714,7 @@ function StudentMobile({ notices, setNotices, scheduleRows, mealMenu, busRows })
 function AppContent(props) {
   const { userId, page } = props;
   if (userId === "admin") return page === "access" ? <AccessPage /> : <AdminDashboard {...props} />;
-  if (userId === "course") return page === "notice" ? <NoticePage {...props} /> : <BusPage {...props} />;
+  if (userId === "course") return page === "notice" ? <NoticePage {...props} /> : page === "prep" ? <OperationPrepPage /> : <BusPage {...props} />;
   if (userId === "room") return <RoomPage {...props} />;
   if (userId === "meal") return <MealPage {...props} />;
   if (userId === "facility") return <FacilityPage {...props} />;
