@@ -70,9 +70,10 @@ const uploadedMealMenu = {
 };
 
 const noticesSeed = [
-  { id: 1, title: "입소버스 수요조사가 열렸습니다.", body: "교육생 포털에서 입소/퇴소 버스 이용 여부를 선택해 주세요.", time: "09:10", unread: true },
-  { id: 2, title: "객실 신청기간 안내", body: "동일객실 및 건강상 요청사항은 신청기간 내 제출 가능합니다.", time: "10:20", unread: true },
-  { id: 3, title: "강의실 변경 없음", body: "오늘 강의는 교육동 2층 A-201에서 진행됩니다.", time: "08:40", unread: false },
+  { id: 0, title: "[긴급] 우천으로 입소버스 출발 15분 지연", body: "광주송정역 1호차는 우천으로 인해 15분 지연 출발합니다. 현장 안내를 확인해 주세요.", time: "07:55", unread: true, urgent: true },
+  { id: 1, title: "입소버스 수요조사가 열렸습니다.", body: "교육생 포털에서 입소/퇴소 버스 이용 여부를 선택해 주세요.", time: "09:10", unread: true, urgent: false },
+  { id: 2, title: "객실 신청기간 안내", body: "동일객실 및 건강상 요청사항은 신청기간 내 제출 가능합니다.", time: "10:20", unread: true, urgent: false },
+  { id: 3, title: "강의실 변경 없음", body: "오늘 강의는 교육동 2층 A-201에서 진행됩니다.", time: "08:40", unread: false, urgent: false },
 ];
 
 const students = [
@@ -131,7 +132,7 @@ function Badge({ children, color = "slate" }) {
     red: "bg-rose-100 text-rose-700",
     purple: "bg-violet-100 text-violet-700",
   };
-  return <span className={cx("inline-flex rounded-full px-2 py-1 text-xs font-bold", colors[color])}>{children}</span>;
+  return <span className={cx("inline-flex shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-xs font-bold", colors[color])}>{children}</span>;
 }
 
 function Card({ children, className }) {
@@ -227,7 +228,7 @@ function NotificationPanel({ open, notices, onClose, onReadAll }) {
   return (
     <div className="fixed right-4 top-20 z-50 w-[360px] max-w-[calc(100vw-2rem)] rounded-2xl bg-white p-4 shadow-2xl ring-1 ring-slate-200">
       <div className="mb-3 flex items-center justify-between"><b>알림</b><button onClick={onClose} className="text-sm text-slate-400">닫기</button></div>
-      <div className="space-y-2">{notices.map((n) => <div key={n.id} className={cx("rounded-xl p-3", n.unread ? "bg-sky-50" : "bg-slate-50")}><div className="flex justify-between gap-2"><b className="text-sm">{n.title}</b><span className="text-xs text-slate-400">{n.time}</span></div><p className="mt-1 text-xs leading-5 text-slate-600">{n.body}</p></div>)}</div>
+      <div className="space-y-2">{notices.map((n) => <div key={n.id} className={cx("rounded-xl p-3 ring-1", n.urgent ? "bg-rose-50 ring-rose-200" : n.unread ? "bg-sky-50 ring-transparent" : "bg-slate-50 ring-transparent")}><div className="flex justify-between gap-2"><span className="flex items-center gap-1.5"><b className="text-sm">{n.title}</b>{n.urgent && <Badge color="red">긴급</Badge>}</span><span className="text-xs text-slate-400">{n.time}</span></div><p className="mt-1 text-xs leading-5 text-slate-600">{n.body}</p></div>)}</div>
       <button onClick={onReadAll} className="mt-3 w-full rounded-xl bg-[#173F4F] py-2 text-sm font-bold text-white">모두 읽음 처리</button>
     </div>
   );
@@ -309,7 +310,7 @@ function BusPage({ busRows, setBusRows, setNotices }) {
   const confirm = () => {
     setBusRows(busRows.map((b) => ({ ...b, status: "확정", time: confirmTimes[b.id] || b.time })));
     setMsg("노선 시간이 확정되어 교육생 포털에 자동 반영되었습니다.");
-    setNotices((prev) => [{ id: Date.now(), title: "버스 시간이 확정되었습니다.", body: "교육생 포털에서 확정된 노선 및 시간을 확인할 수 있습니다.", time: "방금", unread: true }, ...prev]);
+    setNotices((prev) => [{ id: Date.now(), title: "버스 시간이 확정되었습니다.", body: "교육생 포털에서 확정된 노선 및 시간을 확인할 수 있습니다.", time: "방금", unread: true, urgent: false }, ...prev]);
   };
   const vendorList = students.filter((s) => s.bus !== "자차").slice(0, 8);
   return (
@@ -326,17 +327,48 @@ function BusPage({ busRows, setBusRows, setNotices }) {
 function NoticePage({ notices, setNotices, scheduleRows, setScheduleRows }) {
   const [title, setTitle] = useState("퇴소버스 2차 수요조사 안내");
   const [body, setBody] = useState("오늘 18시까지 퇴소버스 이용 여부를 선택해 주세요.");
+  const [urgent, setUrgent] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [sent, setSent] = useState(false);
   const [uploaded, setUploaded] = useState(false);
-  const sendNotice = () => {
-    setNotices([{ id: Date.now(), title, body, time: "방금", unread: true }, ...notices]);
-    setSent(true);
+
+  const resetForm = () => {
+    setTitle("");
+    setBody("");
+    setUrgent(false);
+    setEditingId(null);
   };
+
+  const sendNotice = () => {
+    if (!title.trim() || !body.trim()) return;
+    if (editingId) {
+      setNotices(notices.map((n) => (n.id === editingId ? { ...n, title, body, urgent } : n)));
+    } else {
+      setNotices([{ id: Date.now(), title, body, time: "방금", unread: true, urgent }, ...notices]);
+    }
+    setSent(true);
+    resetForm();
+  };
+
+  const editNotice = (n) => {
+    setEditingId(n.id);
+    setTitle(n.title);
+    setBody(n.body);
+    setUrgent(!!n.urgent);
+    setSent(false);
+  };
+
+  const deleteNotice = (id) => {
+    setNotices(notices.filter((n) => n.id !== id));
+    if (editingId === id) resetForm();
+  };
+
   const uploadSchedule = () => {
     setScheduleRows(uploadedScheduleRows);
     setUploaded(true);
-    setNotices((prev) => [{ id: Date.now(), title: "시간표가 변경되었습니다.", body: "교육생 포털의 시간표/강의실 정보가 최신 자료로 반영되었습니다.", time: "방금", unread: true }, ...prev]);
+    setNotices((prev) => [{ id: Date.now(), title: "시간표가 변경되었습니다.", body: "교육생 포털의 시간표/강의실 정보가 최신 자료로 반영되었습니다.", time: "방금", unread: true, urgent: false }, ...prev]);
   };
+
   return (
     <>
       <PageTitle title="공지/안내" sub="직접 작성한 공지와 업로드한 시간표가 교육생 포털에 즉시 반영" action={<button onClick={uploadSchedule} className="rounded-xl bg-white px-4 py-2 text-sm font-bold ring-1 ring-slate-200">시간표 업로드</button>} />
@@ -344,19 +376,63 @@ function NoticePage({ notices, setNotices, scheduleRows, setScheduleRows }) {
       {uploaded && <div className="mb-4 rounded-xl bg-sky-50 p-3 text-sm font-bold text-sky-700">시간표_신임자3기.xlsx 업로드 완료 · 교육생 화면에 즉시 반영</div>}
       <div className="grid gap-5 xl:grid-cols-2">
         <Card>
-          <h2 className="mb-3 font-black">공지 작성</h2>
-          <label className="text-xs font-bold text-slate-500">제목</label>
+          <div className="flex items-center justify-between">
+            <h2 className="font-black">{editingId ? "공지 수정" : "공지 작성"}</h2>
+            {editingId && <button onClick={resetForm} className="text-xs font-bold text-slate-400">취소</button>}
+          </div>
+          <label className="mt-3 block text-xs font-bold text-slate-500">중요도</label>
+          <div className="mt-1 flex gap-2">
+            {[["일반", false], ["긴급", true]].map(([label, val]) => (
+              <button
+                key={label}
+                onClick={() => setUrgent(val)}
+                className={cx(
+                  "flex-1 rounded-xl py-2 text-sm font-bold ring-1",
+                  urgent === val
+                    ? val
+                      ? "bg-rose-600 text-white ring-rose-600"
+                      : "bg-[#173F4F] text-white ring-[#173F4F]"
+                    : "bg-white text-slate-600 ring-slate-200"
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <label className="mt-4 block text-xs font-bold text-slate-500">제목</label>
           <input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:ring-2 focus:ring-[#173F4F]" />
           <label className="mt-4 block text-xs font-bold text-slate-500">내용</label>
           <textarea value={body} onChange={(e) => setBody(e.target.value)} className="mt-1 min-h-32 w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:ring-2 focus:ring-[#173F4F]" />
-          <button onClick={sendNotice} className="mt-4 w-full rounded-xl bg-[#173F4F] py-3 text-sm font-bold text-white">공지 발송</button>
+          <button onClick={sendNotice} className={cx("mt-4 w-full rounded-xl py-3 text-sm font-bold text-white", urgent ? "bg-rose-600" : "bg-[#173F4F]")}>{editingId ? "수정 완료" : "공지 발송"}</button>
         </Card>
         <Card>
           <h2 className="mb-3 font-black">현재 시간표</h2>
           {scheduleRows.map((s) => <div key={`${s.day}-${s.time}-${s.title}`} className="mb-2 rounded-xl bg-slate-50 p-3"><b className="text-sm">{s.title}</b><div className="text-xs text-slate-500">{s.day} · {s.time} · {s.room}</div></div>)}
         </Card>
       </div>
-      <Card className="mt-5"><h2 className="mb-3 font-black">발송 이력</h2>{notices.map((n) => <div key={n.id} className="mb-3 rounded-xl bg-slate-50 p-4"><div className="flex justify-between"><b>{n.title}</b><Badge color={n.unread ? "blue" : "slate"}>{n.unread ? "미확인" : "확인"}</Badge></div><p className="mt-1 text-sm text-slate-500">{n.body}</p></div>)}</Card>
+      <Card className="mt-5">
+        <h2 className="mb-3 font-black">공지 목록 관리</h2>
+        {notices.length === 0 && <p className="text-sm text-slate-400">등록된 공지가 없습니다.</p>}
+        {notices.map((n) => (
+          <div key={n.id} className={cx("mb-3 rounded-xl p-4 ring-1", n.urgent ? "bg-rose-50 ring-rose-200" : "bg-slate-50 ring-slate-100")}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                {n.urgent && <Badge color="red">긴급</Badge>}
+                <b>{n.title}</b>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge color={n.unread ? "blue" : "slate"}>{n.unread ? "미확인" : "확인"}</Badge>
+                <span className="text-xs text-slate-400">{n.time}</span>
+              </div>
+            </div>
+            <p className="mt-1 text-sm text-slate-500">{n.body}</p>
+            <div className="mt-3 flex gap-2">
+              <button onClick={() => editNotice(n)} className="rounded-lg bg-white px-3 py-1.5 text-xs font-bold ring-1 ring-slate-200">수정</button>
+              <button onClick={() => deleteNotice(n.id)} className="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-rose-600 ring-1 ring-rose-200">삭제</button>
+            </div>
+          </div>
+        ))}
+      </Card>
     </>
   );
 }
@@ -376,7 +452,7 @@ function MealPage({ mealMenu, setMealMenu, setNotices }) {
   const uploadMeal = () => {
     setMealMenu(uploadedMealMenu);
     setUploaded(true);
-    setNotices((prev) => [{ id: Date.now(), title: "식단표가 등록되었습니다.", body: "교육생 포털의 오늘 식단이 최신 식단표로 반영되었습니다.", time: "방금", unread: true }, ...prev]);
+    setNotices((prev) => [{ id: Date.now(), title: "식단표가 등록되었습니다.", body: "교육생 포털의 오늘 식단이 최신 식단표로 반영되었습니다.", time: "방금", unread: true, urgent: false }, ...prev]);
   };
   return <><PageTitle title="식당관리" sub="식단표 업로드 및 식사 확인" action={<div className="flex gap-2"><button onClick={uploadMeal} className="rounded-xl bg-white px-4 py-2 text-sm font-bold ring-1 ring-slate-200">식단표 업로드</button><button onClick={() => setChecked(students.reduce((a, s) => ({ ...a, [s.id]: true }), {}))} className="rounded-xl bg-[#173F4F] px-4 py-2 text-sm font-bold text-white">QR 일괄 확인</button></div>} />{uploaded && <div className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">식단표 업로드 완료 · 교육생 포털에 즉시 반영되었습니다.</div>}<div className="grid gap-4 md:grid-cols-4"><KPI title="조식" value="92명" sub="예정" icon={Utensils} /><KPI title="중식" value="96명" sub="예정" icon={Utensils} /><KPI title="식사확인" value={`${checkedCount}/12`} sub="QR 확인" icon={QrCode} /><KPI title="식단표" value={mealMenu.updatedAt.includes("업로드") ? "등록" : "대기"} sub={mealMenu.updatedAt} icon={FileText} /></div><div className="mt-5 grid gap-5 xl:grid-cols-2"><Card><h2 className="mb-3 font-black">현재 식단표</h2>{Object.entries({ 조식: mealMenu.breakfast, 중식: mealMenu.lunch, 석식: mealMenu.dinner }).map(([k, v]) => <div key={k} className="mb-2 rounded-xl bg-slate-50 p-3"><b>{k}</b><p className="text-sm text-slate-600">{v}</p></div>)}</Card><Card><h2 className="mb-3 font-black">식사 확인</h2><table className="w-full text-left text-sm"><tbody className="divide-y divide-slate-100">{students.slice(0, 8).map((s) => <tr key={s.id}><td className="p-3 font-bold">{s.name}</td><td className="p-3">중식</td><td className="p-3">{checked[s.id] ? <Badge color="green">확인</Badge> : <Badge color="amber">미확인</Badge>}</td><td className="p-3 text-right"><button onClick={() => setChecked({ ...checked, [s.id]: !checked[s.id] })} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold">{checked[s.id] ? "취소" : "확인"}</button></td></tr>)}</tbody></table></Card></div></>;
 }
@@ -404,12 +480,84 @@ function StudentMobile({ notices, setNotices, scheduleRows, mealMenu, busRows })
   const [depart, setDepart] = useState("광주송정역");
   const [departDay, setDepartDay] = useState("금요일");
   const [busSubmitted, setBusSubmitted] = useState(false);
+  const [openNoticeId, setOpenNoticeId] = useState(null);
   const confirmedBus = busRows.find((b) => b.route === arrival && b.day === arrivalDay && b.status === "확정");
   const submitBus = () => {
     setBusSubmitted(true);
-    setNotices([{ id: Date.now(), title: "버스 수요조사 제출 완료", body: `입소 ${arrival} ${arrivalDay}, 퇴소 ${depart} ${departDay}로 제출되었습니다. 시간은 담당자 확정 후 안내됩니다.`, time: "방금", unread: true }, ...notices]);
+    setNotices([{ id: Date.now(), title: "버스 수요조사 제출 완료", body: `입소 ${arrival} ${arrivalDay}, 퇴소 ${depart} ${departDay}로 제출되었습니다. 시간은 담당자 확정 후 안내됩니다.`, time: "방금", unread: true, urgent: false }, ...notices]);
   };
-  return <div className="mx-auto max-w-md"><div className="overflow-hidden rounded-[2rem] bg-white shadow-sm ring-1 ring-slate-200"><div className="bg-[#173F4F] p-5 text-white"><div className="text-sm text-teal-100">신임자 과정 3기</div><div className="mt-1 text-2xl font-black">교육생01</div></div><div className="p-5">{tab === "home" && <div className="grid gap-3"><KPI title="내 객실" value={submitted ? "신청완료" : "201호"} sub={submitted ? "객실담당자 검토 대기" : "배정 완료"} icon={BedDouble} /><KPI title="강의실" value={scheduleRows[0]?.room || "A-201"} sub={scheduleRows[0]?.title || course.classroom} icon={ClipboardCheck} /><KPI title="입소 버스" value={busSubmitted ? arrival : "수요조사"} sub={confirmedBus ? `${confirmedBus.day} ${confirmedBus.time} 확정` : busSubmitted ? "시간 확정 대기" : "신청 필요"} icon={Bus} /></div>}{tab === "schedule" && <div><h2 className="mb-3 font-black">시간표/강의실</h2>{scheduleRows.map((s) => <div key={`${s.day}-${s.time}-${s.title}`} className="mb-2 rounded-xl bg-slate-50 p-3"><b>{s.title}</b><div className="text-xs text-slate-500">{s.day} · {s.time} · {s.room}</div></div>)}</div>}{tab === "meal" && <div><h2 className="mb-3 font-black">오늘 식단</h2>{Object.entries({ 조식: mealMenu.breakfast, 중식: mealMenu.lunch, 석식: mealMenu.dinner }).map(([k,v]) => <div key={k} className="mb-2 rounded-xl bg-slate-50 p-3"><b>{k}</b><p className="text-sm text-slate-600">{v}</p></div>)}</div>}{tab === "bus" && <div><h2 className="font-black">버스 수요조사</h2><p className="mt-1 text-xs text-slate-500">교육생은 노선과 요일만 선택합니다. 시간은 담당자가 확정하면 자동 안내됩니다.</p>{busSubmitted && <div className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">버스 수요조사가 제출되었습니다.</div>}<label className="mt-3 block text-xs font-bold text-slate-500">입소 노선</label><select value={arrival} onChange={(e)=>setArrival(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 p-3"><option>광주송정역</option><option>부산역</option><option>대전역</option><option>서울역</option><option>자차</option></select><label className="mt-3 block text-xs font-bold text-slate-500">입소 요일</label><select value={arrivalDay} onChange={(e)=>setArrivalDay(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 p-3"><option>월요일</option><option>화요일</option></select><label className="mt-3 block text-xs font-bold text-slate-500">퇴소 노선</label><select value={depart} onChange={(e)=>setDepart(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 p-3"><option>광주송정역</option><option>부산역</option><option>대전역</option><option>서울역</option><option>자차</option></select><label className="mt-3 block text-xs font-bold text-slate-500">퇴소 요일</label><select value={departDay} onChange={(e)=>setDepartDay(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 p-3"><option>금요일</option><option>토요일</option></select><button onClick={submitBus} className="mt-4 w-full rounded-xl bg-[#173F4F] py-3 font-bold text-white">수요조사 제출</button></div>}{tab === "room" && <div><h2 className="font-black">객실 요청</h2>{submitted && <div className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">객실 요청이 제출되었습니다.</div>}<textarea value={roomText} onChange={(e) => setRoomText(e.target.value)} className="mt-3 min-h-28 w-full rounded-xl border border-slate-200 p-3" /><button onClick={() => setSubmitted(true)} className="mt-3 w-full rounded-xl bg-[#173F4F] py-3 font-bold text-white">제출</button></div>}{tab === "qr" && <div className="text-center"><div className="mx-auto grid h-44 w-44 grid-cols-5 gap-1 rounded-2xl bg-slate-900 p-3">{Array.from({ length: 25 }).map((_, i) => <div key={i} className={cx("rounded-sm", [0, 2, 6, 8, 12, 16, 18, 20, 22, 24].includes(i) ? "bg-white" : "bg-slate-900")} />)}</div><div className="mt-4 font-black">모바일 학생증 QR</div><div className="text-sm text-slate-500">버스·출석·식사 확인 공통 사용</div></div>}</div><div className="grid grid-cols-6 border-t border-slate-100">{[["home", "홈"], ["schedule", "시간표"], ["meal", "식단"], ["bus", "버스"], ["room", "객실"], ["qr", "QR"]].map(([id, label]) => <button key={id} onClick={() => setTab(id)} className={cx("py-4 text-xs font-bold", tab === id ? "text-[#173F4F]" : "text-slate-400")}>{label}</button>)}</div></div></div>;
+  const unreadCount = notices.filter((n) => n.unread).length;
+  const bannerNotice = notices.find((n) => n.unread && n.urgent) || notices.find((n) => n.unread);
+  const openNotice = (n) => {
+    setOpenNoticeId((prev) => (prev === n.id ? null : n.id));
+    if (n.unread) setNotices(notices.map((x) => (x.id === n.id ? { ...x, unread: false } : x)));
+  };
+
+  return (
+    <div className="mx-auto max-w-md">
+      <div className="overflow-hidden rounded-[2rem] bg-white shadow-sm ring-1 ring-slate-200">
+        <div className="bg-[#173F4F] p-5 text-white">
+          <div className="text-sm text-teal-100">신임자 과정 3기</div>
+          <div className="mt-1 text-2xl font-black">교육생01</div>
+        </div>
+        {bannerNotice && (
+          <button
+            onClick={() => { setTab("notice"); openNotice(bannerNotice); }}
+            className={cx("flex w-full items-center gap-2 px-5 py-3 text-left text-sm font-bold", bannerNotice.urgent ? "bg-rose-600 text-white" : "bg-sky-50 text-sky-700")}
+          >
+            <Bell size={16} />
+            <span className="flex-1 truncate">{bannerNotice.urgent ? "[긴급] " : ""}{bannerNotice.title}</span>
+            <span className="text-xs font-normal opacity-80">자세히</span>
+          </button>
+        )}
+        <div className="p-5">
+          {tab === "home" && <div className="grid gap-3"><KPI title="내 객실" value={submitted ? "신청완료" : "201호"} sub={submitted ? "객실담당자 검토 대기" : "배정 완료"} icon={BedDouble} /><KPI title="강의실" value={scheduleRows[0]?.room || "A-201"} sub={scheduleRows[0]?.title || course.classroom} icon={ClipboardCheck} /><KPI title="입소 버스" value={busSubmitted ? arrival : "수요조사"} sub={confirmedBus ? `${confirmedBus.day} ${confirmedBus.time} 확정` : busSubmitted ? "시간 확정 대기" : "신청 필요"} icon={Bus} /></div>}
+          {tab === "schedule" && <div><h2 className="mb-3 font-black">시간표/강의실</h2>{scheduleRows.map((s) => <div key={`${s.day}-${s.time}-${s.title}`} className="mb-2 rounded-xl bg-slate-50 p-3"><b>{s.title}</b><div className="text-xs text-slate-500">{s.day} · {s.time} · {s.room}</div></div>)}</div>}
+          {tab === "meal" && <div><h2 className="mb-3 font-black">오늘 식단</h2>{Object.entries({ 조식: mealMenu.breakfast, 중식: mealMenu.lunch, 석식: mealMenu.dinner }).map(([k,v]) => <div key={k} className="mb-2 rounded-xl bg-slate-50 p-3"><b>{k}</b><p className="text-sm text-slate-600">{v}</p></div>)}</div>}
+          {tab === "bus" && <div><h2 className="font-black">버스 수요조사</h2><p className="mt-1 text-xs text-slate-500">교육생은 노선과 요일만 선택합니다. 시간은 담당자가 확정하면 자동 안내됩니다.</p>{busSubmitted && <div className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">버스 수요조사가 제출되었습니다.</div>}<label className="mt-3 block text-xs font-bold text-slate-500">입소 노선</label><select value={arrival} onChange={(e)=>setArrival(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 p-3"><option>광주송정역</option><option>부산역</option><option>대전역</option><option>서울역</option><option>자차</option></select><label className="mt-3 block text-xs font-bold text-slate-500">입소 요일</label><select value={arrivalDay} onChange={(e)=>setArrivalDay(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 p-3"><option>월요일</option><option>화요일</option></select><label className="mt-3 block text-xs font-bold text-slate-500">퇴소 노선</label><select value={depart} onChange={(e)=>setDepart(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 p-3"><option>광주송정역</option><option>부산역</option><option>대전역</option><option>서울역</option><option>자차</option></select><label className="mt-3 block text-xs font-bold text-slate-500">퇴소 요일</label><select value={departDay} onChange={(e)=>setDepartDay(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 p-3"><option>금요일</option><option>토요일</option></select><button onClick={submitBus} className="mt-4 w-full rounded-xl bg-[#173F4F] py-3 font-bold text-white">수요조사 제출</button></div>}
+          {tab === "room" && <div><h2 className="font-black">객실 요청</h2>{submitted && <div className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">객실 요청이 제출되었습니다.</div>}<textarea value={roomText} onChange={(e) => setRoomText(e.target.value)} className="mt-3 min-h-28 w-full rounded-xl border border-slate-200 p-3" /><button onClick={() => setSubmitted(true)} className="mt-3 w-full rounded-xl bg-[#173F4F] py-3 font-bold text-white">제출</button></div>}
+          {tab === "notice" && (
+            <div>
+              <h2 className="mb-3 font-black">공지사항</h2>
+              {notices.length === 0 && <p className="text-sm text-slate-400">등록된 공지가 없습니다.</p>}
+              {notices.map((n) => {
+                const open = openNoticeId === n.id;
+                return (
+                  <button
+                    key={n.id}
+                    onClick={() => openNotice(n)}
+                    className={cx("mb-2 block w-full rounded-xl p-3 text-left ring-1", n.urgent ? "bg-rose-50 ring-rose-200" : "bg-slate-50 ring-slate-100")}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5">
+                        {n.urgent && <Badge color="red">긴급</Badge>}
+                        <b className="text-sm">{n.title}</b>
+                        {n.unread && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-sky-500" />}
+                      </span>
+                      <span className="shrink-0 text-xs text-slate-400">{n.time}</span>
+                    </div>
+                    {open && <p className="mt-2 text-xs leading-5 text-slate-600">{n.body}</p>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {tab === "qr" && <div className="text-center"><div className="mx-auto grid h-44 w-44 grid-cols-5 gap-1 rounded-2xl bg-slate-900 p-3">{Array.from({ length: 25 }).map((_, i) => <div key={i} className={cx("rounded-sm", [0, 2, 6, 8, 12, 16, 18, 20, 22, 24].includes(i) ? "bg-white" : "bg-slate-900")} />)}</div><div className="mt-4 font-black">모바일 학생증 QR</div><div className="text-sm text-slate-500">버스·출석·식사 확인 공통 사용</div></div>}
+        </div>
+        <div className="grid grid-cols-7 border-t border-slate-100">
+          {[["home", "홈"], ["schedule", "시간표"], ["meal", "식단"], ["bus", "버스"], ["room", "객실"], ["notice", "공지"], ["qr", "QR"]].map(([id, label]) => (
+            <button key={id} onClick={() => setTab(id)} className={cx("relative flex items-center justify-center gap-1 py-4 text-xs font-bold", tab === id ? "text-[#173F4F]" : "text-slate-400")}>
+              {id === "notice" && <Bell size={14} />}
+              {label}
+              {id === "notice" && unreadCount > 0 && (
+                <span className="absolute right-2.5 top-2 rounded-full bg-rose-500 px-1.5 text-[9px] font-black text-white">{unreadCount}</span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function AppContent(props) {
