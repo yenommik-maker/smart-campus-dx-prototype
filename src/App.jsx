@@ -258,8 +258,24 @@ function TopBar({ userId, unread, onBell, onMenuClick, onLogout }) {
   );
 }
 
+const DEMO_PASSWORD = "1234";
+
 function LoginScreen({ onLogin }) {
-  const [selected, setSelected] = useState(demoUsers[0].id);
+  const [loginId, setLoginId] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const submit = (e) => {
+    e.preventDefault();
+    const user = demoUsers.find((u) => u.id === loginId.trim());
+    if (!user || password !== DEMO_PASSWORD) {
+      setError("아이디 또는 비밀번호가 올바르지 않습니다.");
+      return;
+    }
+    setError("");
+    onLogin(user.id);
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
       <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
@@ -267,23 +283,32 @@ function LoginScreen({ onLogin }) {
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#173F4F] text-white"><Home size={20} /></div>
           <div className="font-black text-slate-900">Smart Campus DX</div>
         </div>
-        <p className="mb-4 text-sm text-slate-500">로그인할 계정을 선택하세요. 접근 가능한 화면은 관리자가 부여한 권한 범위에 따라 결정됩니다.</p>
-        <div className="mb-4 space-y-2">
-          {demoUsers.map((u) => (
-            <button
-              key={u.id}
-              onClick={() => setSelected(u.id)}
-              className={cx(
-                "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm ring-1",
-                selected === u.id ? "bg-[#173F4F] text-white ring-[#173F4F]" : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50"
-              )}
-            >
-              <span className="font-bold">{u.name}</span>
-              <span className={cx("text-xs", selected === u.id ? "text-white/70" : "text-slate-400")}>{u.role}</span>
-            </button>
-          ))}
+        <p className="mb-4 text-sm text-slate-500">아이디와 비밀번호를 입력해 로그인하세요. 접근 가능한 화면은 관리자가 부여한 권한 범위에 따라 결정됩니다.</p>
+        <form onSubmit={submit} className="space-y-2">
+          <input
+            value={loginId}
+            onChange={(e) => setLoginId(e.target.value)}
+            placeholder="아이디"
+            autoComplete="username"
+            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#173F4F]"
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="비밀번호"
+            autoComplete="current-password"
+            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#173F4F]"
+          />
+          {error && <div className="rounded-lg bg-rose-50 px-3 py-2 text-xs font-bold text-rose-600">{error}</div>}
+          <button type="submit" className="w-full rounded-xl bg-[#173F4F] py-2.5 text-sm font-bold text-white">로그인</button>
+        </form>
+        <div className="mt-4 rounded-xl bg-slate-50 p-3 text-xs text-slate-500">
+          <div className="mb-1.5 font-bold text-slate-600">데모 계정 안내 (공통 비밀번호: {DEMO_PASSWORD})</div>
+          <div className="flex flex-wrap gap-1.5">
+            {demoUsers.map((u) => <span key={u.id} className="rounded-full bg-white px-2 py-1 ring-1 ring-slate-200">{u.id} · {u.name}</span>)}
+          </div>
         </div>
-        <button onClick={() => onLogin(selected)} className="w-full rounded-xl bg-[#173F4F] py-2.5 text-sm font-bold text-white">로그인</button>
       </div>
     </div>
   );
