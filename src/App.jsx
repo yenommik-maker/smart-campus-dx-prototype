@@ -1172,6 +1172,39 @@ function BoardingPage({ busRows, setBusRows }) {
   return <div className="mx-auto max-w-md"><PageTitle title="탑승확인" sub="광주송정역 1호차" /><Card className="bg-slate-950 text-white"><div className="flex justify-between"><div><div className="text-sm text-slate-300">입소버스</div><div className="text-2xl font-black">광주송정역 1호차</div></div><QrCode /></div><div className="mt-5 grid grid-cols-3 gap-2 text-center"><div className="rounded-xl bg-white/10 p-3"><b>34</b><div className="text-xs">예약</div></div><div className="rounded-xl bg-white/10 p-3"><b>{busRows[0].boarded}</b><div className="text-xs">탑승</div></div><div className="rounded-xl bg-white/10 p-3"><b>{Math.max(0, busRows[0].reserved - busRows[0].boarded)}</b><div className="text-xs">미탑승</div></div></div></Card><Card className="mt-4"><button onClick={() => checkStudent(list[0])} className="mb-3 w-full rounded-xl bg-[#173F4F] py-3 font-bold text-white">QR 스캔</button><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="이름/좌석 검색" className="mb-3 w-full rounded-xl border border-slate-200 p-3" />{checked && <div className="mb-3 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">{checked.name} 정상 탑승 처리</div>}{list.slice(0, 6).map((s) => <button key={s.id} onClick={() => checkStudent(s)} className="mb-2 flex w-full justify-between rounded-xl bg-slate-50 p-3 text-left"><span><b>{s.name}</b><div className="text-xs text-slate-500">{s.bus} · {s.seat}</div></span>{s.boarded ? <Badge color="green">탑승</Badge> : <Badge color="amber">미탑승</Badge>}</button>)}</Card></div>;
 }
 
+function BusSeatMap({ bus, mySeat, onSelect }) {
+  const seats = Array.from({ length: bus.seats }, (_, i) => {
+    const row = Math.floor(i / 4) + 1;
+    const col = "ABCD"[i % 4];
+    return `${row}${col}`;
+  });
+  return (
+    <div className="grid grid-cols-4 gap-2">
+      {seats.map((label, i) => {
+        const isMine = label === mySeat;
+        const isTaken = i < bus.reserved && !isMine;
+        return (
+          <button
+            key={label}
+            disabled={isTaken}
+            onClick={() => onSelect(label)}
+            className={cx(
+              "rounded-lg py-2 text-xs font-bold",
+              isMine
+                ? "bg-[#173F4F] text-white"
+                : isTaken
+                ? "cursor-not-allowed bg-slate-100 text-slate-300"
+                : "bg-white text-slate-600 ring-1 ring-slate-200 hover:ring-2 hover:ring-[#173F4F]"
+            )}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function StudentMobile({ notices, setNotices, scheduleRows, mealMenu, busRows }) {
   const [tab, setTab] = useState("home");
   const [submitted, setSubmitted] = useState(false);
@@ -1182,10 +1215,17 @@ function StudentMobile({ notices, setNotices, scheduleRows, mealMenu, busRows })
   const [departDay, setDepartDay] = useState("금요일");
   const [busSubmitted, setBusSubmitted] = useState(false);
   const [openNoticeId, setOpenNoticeId] = useState(null);
+  const [mySeat, setMySeat] = useState(null);
+  const [seatPickerOpen, setSeatPickerOpen] = useState(false);
   const confirmedBus = busRows.find((b) => b.route === arrival && b.day === arrivalDay && b.status === "확정");
   const submitBus = () => {
     setBusSubmitted(true);
     setNotices([{ id: Date.now(), title: "버스 수요조사 제출 완료", body: `입소 ${arrival} ${arrivalDay}, 퇴소 ${depart} ${departDay}로 제출되었습니다. 시간은 담당자 확정 후 안내됩니다.`, time: "방금", unread: true, urgent: false }, ...notices]);
+  };
+  const reserveSeat = (label) => {
+    setMySeat(label);
+    setSeatPickerOpen(false);
+    setNotices([{ id: Date.now(), title: "버스 좌석 예약 완료", body: `${confirmedBus.route} ${confirmedBus.day} ${confirmedBus.time} · ${confirmedBus.vehicle} 좌석 ${label}로 예약되었습니다.`, time: "방금", unread: true, urgent: false }, ...notices]);
   };
   const unreadCount = notices.filter((n) => n.unread).length;
   const bannerNotice = notices.find((n) => n.unread && n.urgent) || notices.find((n) => n.unread);
@@ -1212,10 +1252,56 @@ function StudentMobile({ notices, setNotices, scheduleRows, mealMenu, busRows })
           </button>
         )}
         <div className="min-h-0 flex-1 overflow-y-auto p-5">
-          {tab === "home" && <div className="grid gap-3"><KPI title="내 객실" value={submitted ? "신청완료" : "201호"} sub={submitted ? "객실담당자 검토 대기" : "배정 완료"} icon={BedDouble} /><KPI title="강의실" value={scheduleRows[0]?.room || "A-201"} sub={scheduleRows[0]?.title || course.classroom} icon={ClipboardCheck} /><KPI title="입소 버스" value={busSubmitted ? arrival : "수요조사"} sub={confirmedBus ? `${confirmedBus.day} ${confirmedBus.time} 확정` : busSubmitted ? "시간 확정 대기" : "신청 필요"} icon={Bus} /></div>}
+          {tab === "home" && <div className="grid gap-3"><KPI title="내 객실" value={submitted ? "신청완료" : "201호"} sub={submitted ? "객실담당자 검토 대기" : "배정 완료"} icon={BedDouble} /><KPI title="강의실" value={scheduleRows[0]?.room || "A-201"} sub={scheduleRows[0]?.title || course.classroom} icon={ClipboardCheck} /><KPI title="입소 버스" value={mySeat ? `좌석 ${mySeat}` : busSubmitted ? arrival : "수요조사"} sub={mySeat ? "예약 완료" : confirmedBus ? `${confirmedBus.day} ${confirmedBus.time} 확정 · 좌석 선택 필요` : busSubmitted ? "시간 확정 대기" : "신청 필요"} icon={Bus} /></div>}
           {tab === "schedule" && <div><h2 className="mb-3 font-black">시간표/강의실</h2>{scheduleRows.map((s) => <div key={`${s.day}-${s.time}-${s.title}`} className="mb-2 rounded-xl bg-slate-50 p-3"><b>{s.title}</b><div className="text-xs text-slate-500">{s.day} · {s.time} · {s.room}</div></div>)}</div>}
           {tab === "meal" && <div><h2 className="mb-3 font-black">오늘 식단</h2>{Object.entries({ 조식: mealMenu.breakfast, 중식: mealMenu.lunch, 석식: mealMenu.dinner }).map(([k,v]) => <div key={k} className="mb-2 rounded-xl bg-slate-50 p-3"><b>{k}</b><p className="text-sm text-slate-600">{v}</p></div>)}</div>}
-          {tab === "bus" && <div><h2 className="font-black">버스 수요조사</h2><p className="mt-1 text-xs text-slate-500">교육생은 노선과 요일만 선택합니다. 시간은 담당자가 확정하면 자동 안내됩니다.</p>{busSubmitted && <div className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">버스 수요조사가 제출되었습니다.</div>}<label className="mt-3 block text-xs font-bold text-slate-500">입소 노선</label><select value={arrival} onChange={(e)=>setArrival(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 p-3"><option>광주송정역</option><option>부산역</option><option>대전역</option><option>서울역</option><option>자차</option></select><label className="mt-3 block text-xs font-bold text-slate-500">입소 요일</label><select value={arrivalDay} onChange={(e)=>setArrivalDay(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 p-3"><option>월요일</option><option>화요일</option></select><label className="mt-3 block text-xs font-bold text-slate-500">퇴소 노선</label><select value={depart} onChange={(e)=>setDepart(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 p-3"><option>광주송정역</option><option>부산역</option><option>대전역</option><option>서울역</option><option>자차</option></select><label className="mt-3 block text-xs font-bold text-slate-500">퇴소 요일</label><select value={departDay} onChange={(e)=>setDepartDay(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 p-3"><option>금요일</option><option>토요일</option></select><button onClick={submitBus} className="mt-4 w-full rounded-xl bg-[#173F4F] py-3 font-bold text-white">수요조사 제출</button></div>}
+          {tab === "bus" && (
+            <div>
+              <h2 className="font-black">버스 수요조사</h2>
+              <p className="mt-1 text-xs text-slate-500">교육생은 노선과 요일만 선택합니다. 시간은 담당자가 확정하면 자동 안내됩니다.</p>
+
+              {confirmedBus ? (
+                <div className="mt-3">
+                  <div className="rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">
+                    {confirmedBus.route} {confirmedBus.day} {confirmedBus.time} · {confirmedBus.vehicle} 확정
+                  </div>
+
+                  {mySeat ? (
+                    <div className="mt-3 rounded-xl bg-[#173F4F] p-4 text-white">
+                      <div className="text-xs text-teal-100">내 좌석</div>
+                      <div className="mt-1 text-2xl font-black">{mySeat}</div>
+                      <button onClick={() => setSeatPickerOpen((v) => !v)} className="mt-2 text-xs font-bold text-teal-100 underline">좌석 변경</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setSeatPickerOpen((v) => !v)} className="mt-3 w-full rounded-xl bg-[#173F4F] py-3 font-bold text-white">좌석 선택하기</button>
+                  )}
+
+                  {seatPickerOpen && (
+                    <div className="mt-3">
+                      <div className="mb-2 flex items-center justify-between text-xs font-bold text-slate-500">
+                        <span>{confirmedBus.vehicle} 좌석 선택</span>
+                        <span>{confirmedBus.seats - confirmedBus.reserved}석 남음</span>
+                      </div>
+                      <BusSeatMap bus={confirmedBus} mySeat={mySeat} onSelect={reserveSeat} />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  {busSubmitted && <div className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">버스 수요조사가 제출되었습니다. 담당자 확정 후 좌석 선택이 열립니다.</div>}
+                  <label className="mt-3 block text-xs font-bold text-slate-500">입소 노선</label>
+                  <select value={arrival} onChange={(e) => setArrival(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 p-3"><option>광주송정역</option><option>부산역</option><option>대전역</option><option>서울역</option><option>자차</option></select>
+                  <label className="mt-3 block text-xs font-bold text-slate-500">입소 요일</label>
+                  <select value={arrivalDay} onChange={(e) => setArrivalDay(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 p-3"><option>월요일</option><option>화요일</option></select>
+                  <label className="mt-3 block text-xs font-bold text-slate-500">퇴소 노선</label>
+                  <select value={depart} onChange={(e) => setDepart(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 p-3"><option>광주송정역</option><option>부산역</option><option>대전역</option><option>서울역</option><option>자차</option></select>
+                  <label className="mt-3 block text-xs font-bold text-slate-500">퇴소 요일</label>
+                  <select value={departDay} onChange={(e) => setDepartDay(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 p-3"><option>금요일</option><option>토요일</option></select>
+                  <button onClick={submitBus} className="mt-4 w-full rounded-xl bg-[#173F4F] py-3 font-bold text-white">수요조사 제출</button>
+                </>
+              )}
+            </div>
+          )}
           {tab === "room" && <div><h2 className="font-black">객실 요청</h2>{submitted && <div className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">객실 요청이 제출되었습니다.</div>}<textarea value={roomText} onChange={(e) => setRoomText(e.target.value)} className="mt-3 min-h-28 w-full rounded-xl border border-slate-200 p-3" /><button onClick={() => setSubmitted(true)} className="mt-3 w-full rounded-xl bg-[#173F4F] py-3 font-bold text-white">제출</button></div>}
           {tab === "notice" && (
             <div>
