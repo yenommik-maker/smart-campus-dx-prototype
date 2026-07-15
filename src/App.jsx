@@ -32,13 +32,13 @@ import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Too
 const cx = (...v) => v.filter(Boolean).join(" ");
 
 const demoUsers = [
-  { id: "admin", name: "관리자", role: "시스템 관리자" },
-  { id: "course", name: "과정담당자", role: "신임자 과정 3기 운영" },
-  { id: "room", name: "객실담당자", role: "객실 운영" },
-  { id: "meal", name: "식당담당자", role: "식당 운영" },
-  { id: "facility", name: "시설담당자", role: "시설 처리" },
-  { id: "escort", name: "버스 인솔자", role: "광주송정역 1호차" },
-  { id: "student", name: "교육생", role: "교육생 포털" },
+  { id: "admin", empId: "10001", name: "관리자", role: "시스템 관리자" },
+  { id: "course", empId: "10002", name: "과정담당자", role: "신임자 과정 3기 운영" },
+  { id: "room", empId: "10003", name: "객실담당자", role: "객실 운영" },
+  { id: "meal", empId: "10004", name: "식당담당자", role: "식당 운영" },
+  { id: "facility", empId: "10005", name: "시설담당자", role: "시설 처리" },
+  { id: "escort", empId: "10006", name: "버스 인솔자", role: "광주송정역 1호차" },
+  { id: "student", empId: "10007", name: "교육생", role: "교육생 포털" },
 ];
 
 const course = {
@@ -258,22 +258,21 @@ function TopBar({ userId, unread, onBell, onMenuClick, onLogout }) {
   );
 }
 
-const DEMO_PASSWORD = "1234";
-
-function LoginScreen({ onLogin }) {
-  const [loginId, setLoginId] = useState("");
+function LoginScreen({ credentials, onAuthenticated }) {
+  const [empId, setEmpId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
   const submit = (e) => {
     e.preventDefault();
-    const user = demoUsers.find((u) => u.id === loginId.trim());
-    if (!user || password !== DEMO_PASSWORD) {
-      setError("아이디 또는 비밀번호가 올바르지 않습니다.");
+    const user = demoUsers.find((u) => u.empId === empId.trim());
+    const cred = user && credentials[user.empId];
+    if (!user || !cred || cred.password !== password) {
+      setError("사번 또는 비밀번호가 올바르지 않습니다.");
       return;
     }
     setError("");
-    onLogin(user.id);
+    onAuthenticated(user, !cred.changed);
   };
 
   return (
@@ -283,12 +282,12 @@ function LoginScreen({ onLogin }) {
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#173F4F] text-white"><Home size={20} /></div>
           <div className="font-black text-slate-900">Smart Campus DX</div>
         </div>
-        <p className="mb-4 text-sm text-slate-500">아이디와 비밀번호를 입력해 로그인하세요. 접근 가능한 화면은 관리자가 부여한 권한 범위에 따라 결정됩니다.</p>
+        <p className="mb-4 text-sm text-slate-500">사번과 비밀번호를 입력해 로그인하세요. 최초 로그인 시 비밀번호는 사번과 동일하며, 로그인 후 새 비밀번호를 설정합니다.</p>
         <form onSubmit={submit} className="space-y-2">
           <input
-            value={loginId}
-            onChange={(e) => setLoginId(e.target.value)}
-            placeholder="아이디"
+            value={empId}
+            onChange={(e) => setEmpId(e.target.value)}
+            placeholder="사번"
             autoComplete="username"
             className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#173F4F]"
           />
@@ -304,11 +303,58 @@ function LoginScreen({ onLogin }) {
           <button type="submit" className="w-full rounded-xl bg-[#173F4F] py-2.5 text-sm font-bold text-white">로그인</button>
         </form>
         <div className="mt-4 rounded-xl bg-slate-50 p-3 text-xs text-slate-500">
-          <div className="mb-1.5 font-bold text-slate-600">데모 계정 안내 (공통 비밀번호: {DEMO_PASSWORD})</div>
+          <div className="mb-1.5 font-bold text-slate-600">데모 계정 안내 (최초 비밀번호 = 사번)</div>
           <div className="flex flex-wrap gap-1.5">
-            {demoUsers.map((u) => <span key={u.id} className="rounded-full bg-white px-2 py-1 ring-1 ring-slate-200">{u.id} · {u.name}</span>)}
+            {demoUsers.map((u) => <span key={u.id} className="rounded-full bg-white px-2 py-1 ring-1 ring-slate-200">{u.empId} · {u.name}</span>)}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function PasswordSetupScreen({ user, onSubmit }) {
+  const [pw1, setPw1] = useState("");
+  const [pw2, setPw2] = useState("");
+  const [error, setError] = useState("");
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (!pw1.trim()) { setError("새 비밀번호를 입력하세요."); return; }
+    if (pw1 === user.empId) { setError("사번과 다른 비밀번호를 설정하세요."); return; }
+    if (pw1 !== pw2) { setError("새 비밀번호가 일치하지 않습니다."); return; }
+    setError("");
+    onSubmit(pw1);
+  };
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
+      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#173F4F] text-white"><ShieldCheck size={20} /></div>
+          <div className="font-black text-slate-900">최초 로그인 · 비밀번호 설정</div>
+        </div>
+        <p className="mb-4 text-sm text-slate-500">{user.name}({user.empId}) 님, 보안을 위해 초기 비밀번호(사번)를 새 비밀번호로 변경해 주세요.</p>
+        <form onSubmit={submit} className="space-y-2">
+          <input
+            type="password"
+            value={pw1}
+            onChange={(e) => setPw1(e.target.value)}
+            placeholder="새 비밀번호"
+            autoComplete="new-password"
+            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#173F4F]"
+          />
+          <input
+            type="password"
+            value={pw2}
+            onChange={(e) => setPw2(e.target.value)}
+            placeholder="새 비밀번호 확인"
+            autoComplete="new-password"
+            className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#173F4F]"
+          />
+          {error && <div className="rounded-lg bg-rose-50 px-3 py-2 text-xs font-bold text-rose-600">{error}</div>}
+          <button type="submit" className="w-full rounded-xl bg-[#173F4F] py-2.5 text-sm font-bold text-white">비밀번호 설정하고 시작하기</button>
+        </form>
       </div>
     </div>
   );
@@ -1525,7 +1571,9 @@ function AppContent(props) {
 }
 
 export default function SmartCampusPrototype() {
+  const [credentials, setCredentials] = useState(() => Object.fromEntries(demoUsers.map((u) => [u.empId, { password: u.empId, changed: false }])));
   const [session, setSession] = useState(null);
+  const [pendingUser, setPendingUser] = useState(null);
   const [notices, setNotices] = useState(noticesSeed);
   const [noticeOpen, setNoticeOpen] = useState(false);
   const [busRows, setBusRows] = useState(initialBusRows);
@@ -1537,18 +1585,30 @@ export default function SmartCampusPrototype() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [page, setPage] = useState(null);
 
-  function handleLogin(id) {
+  function enterApp(id) {
     setSession(id);
     setPage(firstPageFor(id, accessRows));
     setMobileNavOpen(false);
   }
+  function handleAuthenticated(user, needsSetup) {
+    if (needsSetup) setPendingUser(user.id);
+    else enterApp(user.id);
+  }
+  function handlePasswordSet(newPassword) {
+    const user = demoUsers.find((u) => u.id === pendingUser);
+    setCredentials((c) => ({ ...c, [user.empId]: { password: newPassword, changed: true } }));
+    setPendingUser(null);
+    enterApp(user.id);
+  }
   function handleLogout() {
     setSession(null);
+    setPendingUser(null);
     setPage(null);
     setMobileNavOpen(false);
   }
 
-  if (!session) return <LoginScreen onLogin={handleLogin} />;
+  if (pendingUser) return <PasswordSetupScreen user={demoUsers.find((u) => u.id === pendingUser)} onSubmit={handlePasswordSet} />;
+  if (!session) return <LoginScreen credentials={credentials} onAuthenticated={handleAuthenticated} />;
 
   const userId = session;
   const allowedScreens = getAllowedScreens(userId, accessRows);
