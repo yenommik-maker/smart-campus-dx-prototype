@@ -36,10 +36,7 @@ const demoUsers = [
   { id: "course", name: "과정담당자", role: "신임자 과정 3기 운영" },
   { id: "room", name: "객실담당자", role: "객실 운영" },
   { id: "meal", name: "식당담당자", role: "식당 운영" },
-  { id: "facility_comm", name: "시설담당자(통신)", role: "통신 분야 처리" },
-  { id: "facility_equip", name: "시설담당자(설비)", role: "설비 분야 처리" },
-  { id: "facility_mech", name: "시설담당자(기계)", role: "기계 분야 처리" },
-  { id: "facility_fire", name: "시설담당자(소방)", role: "소방 분야 처리" },
+  { id: "facility", name: "시설담당자", role: "시설 처리" },
   { id: "escort", name: "버스 인솔자", role: "광주송정역 1호차" },
   { id: "student", name: "교육생", role: "교육생 포털" },
 ];
@@ -124,19 +121,16 @@ const initialFacilityRows = [
   { id: 9, field: "소방", title: "생활관 비상구 표시등 고장", place: "생활관 3층 비상계단", status: "처리중", time: "10:15" },
 ];
 
-const FACILITY_FIELD_BY_USER = { facility_comm: "통신", facility_equip: "설비", facility_mech: "기계", facility_fire: "소방" };
+const ALL_FACILITY_FIELDS = ["통신", "설비", "기계", "소방"];
 
 const ALL_SCREENS = ["대시보드", "권한관리", "버스관리", "공지/안내", "운영준비", "객실관리", "식당관리", "시설처리", "탑승확인", "나의 포털"];
 
 const initialAccessRows = [
-  { id: 1, user: "과정담당자", menu: "버스관리, 공지/안내, 운영준비", screens: ["버스관리", "공지/안내", "운영준비"], perms: "노선확정·공지작성·시간표업로드·시간표합반" },
-  { id: 2, user: "객실담당자", menu: "객실관리", screens: ["객실관리"], perms: "신청기간·자동배정·수동조정" },
-  { id: 3, user: "식당담당자", menu: "식당관리", screens: ["식당관리"], perms: "식단표업로드·식수확인" },
-  { id: 4, user: "시설담당자(통신)", menu: "시설처리", screens: ["시설처리"], perms: "통신 분야 접수·처리중·완료 변경" },
-  { id: 5, user: "버스 인솔자", menu: "탑승확인", screens: ["탑승확인"], perms: "QR·수동체크" },
-  { id: 6, user: "시설담당자(설비)", menu: "시설처리", screens: ["시설처리"], perms: "설비 분야 접수·처리중·완료 변경" },
-  { id: 7, user: "시설담당자(기계)", menu: "시설처리", screens: ["시설처리"], perms: "기계 분야 접수·처리중·완료 변경" },
-  { id: 8, user: "시설담당자(소방)", menu: "시설처리", screens: ["시설처리"], perms: "소방 분야 접수·처리중·완료 변경" },
+  { id: 1, user: "과정담당자", userKey: "course", menu: "버스관리, 공지/안내, 운영준비", screens: ["버스관리", "공지/안내", "운영준비"], perms: "노선확정·공지작성·시간표업로드·시간표합반" },
+  { id: 2, user: "객실담당자", userKey: "room", menu: "객실관리", screens: ["객실관리"], perms: "신청기간·자동배정·수동조정" },
+  { id: 3, user: "식당담당자", userKey: "meal", menu: "식당관리", screens: ["식당관리"], perms: "식단표업로드·식수확인" },
+  { id: 4, user: "시설담당자", userKey: "facility", menu: "시설처리", screens: ["시설처리"], facilityFields: ["통신"], perms: "접수·처리중·완료 변경" },
+  { id: 5, user: "버스 인솔자", userKey: "escort", menu: "탑승확인", screens: ["탑승확인"], perms: "QR·수동체크" },
 ];
 
 const weeklyFacilityTrend = [
@@ -240,10 +234,7 @@ function Sidebar({ userId, page, setPage, mobileOpen, onClose }) {
     course: [["bus", "버스관리", Bus], ["notice", "공지/안내", FileText], ["prep", "운영준비", Settings2]],
     room: [["room", "객실관리", BedDouble]],
     meal: [["meal", "식당관리", Utensils]],
-    facility_comm: [["facility", "시설처리", Wrench]],
-    facility_equip: [["facility", "시설처리", Wrench]],
-    facility_mech: [["facility", "시설처리", Wrench]],
-    facility_fire: [["facility", "시설처리", Wrench]],
+    facility: [["facility", "시설처리", Wrench]],
     escort: [["boarding", "탑승확인", QrCode]],
     student: [["mobile", "나의 포털", Smartphone]],
   };
@@ -492,21 +483,26 @@ function AdminDashboard({ busRows, roomOpen, notices, scheduleRows, mealMenu, fa
   );
 }
 
-function AccessPage() {
-  const [rows, setRows] = useState(initialAccessRows);
+function AccessPage({ accessRows, setAccessRows }) {
+  const rows = accessRows;
+  const setRows = setAccessRows;
   const [notice, setNotice] = useState("");
   const [editId, setEditId] = useState(null);
   const [addOpen, setAddOpen] = useState(false);
-  const emptyForm = { user: "", menu: "", screens: [], perms: "" };
+  const emptyForm = { user: "", menu: "", screens: [], perms: "", userKey: undefined, facilityFields: [] };
   const [form, setForm] = useState(emptyForm);
 
   const toggleScreen = (screen) => {
     setForm((s) => ({ ...s, screens: s.screens.includes(screen) ? s.screens.filter((x) => x !== screen) : [...s.screens, screen] }));
   };
 
+  const toggleFacilityField = (field) => {
+    setForm((s) => ({ ...s, facilityFields: s.facilityFields.includes(field) ? s.facilityFields.filter((x) => x !== field) : [...s.facilityFields, field] }));
+  };
+
   const startEdit = (r) => {
     setEditId(r.id);
-    setForm({ user: r.user, menu: r.menu, screens: r.screens, perms: r.perms });
+    setForm({ user: r.user, menu: r.menu, screens: r.screens, perms: r.perms, userKey: r.userKey, facilityFields: r.facilityFields || [] });
     setAddOpen(false);
     setNotice("");
   };
@@ -570,6 +566,26 @@ function AccessPage() {
               ))}
             </div>
           </div>
+          {form.screens.includes("시설처리") && (
+            <div className="mt-3">
+              <div className="mb-1.5 text-xs font-bold text-slate-500">담당 분야 (시설처리 화면 내 범위)</div>
+              <div className="flex flex-wrap gap-2">
+                {ALL_FACILITY_FIELDS.map((field) => (
+                  <button
+                    key={field}
+                    type="button"
+                    onClick={() => toggleFacilityField(field)}
+                    className={cx(
+                      "rounded-full px-3 py-1.5 text-xs font-bold ring-1",
+                      form.facilityFields.includes(field) ? "bg-amber-500 text-white ring-amber-500" : "bg-white text-slate-500 ring-slate-200 hover:bg-slate-50"
+                    )}
+                  >
+                    {field}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="mt-3 flex gap-2">
             {editId !== null ? (
               <>
@@ -599,6 +615,7 @@ function AccessPage() {
                   <td className="p-3">
                     <div className="flex flex-wrap gap-1">
                       {r.screens.map((s) => <Badge key={s} color="blue">{s}</Badge>)}
+                      {(r.facilityFields || []).map((f) => <Badge key={f} color="amber">{f}</Badge>)}
                     </div>
                   </td>
                   <td className="p-3">{r.perms}</td>
@@ -1201,15 +1218,16 @@ function MealPage({ mealMenu, setMealMenu, setNotices }) {
   return <><PageTitle title="식당관리" sub="식단표 업로드 및 식사 확인" action={<div className="flex flex-wrap gap-2"><button onClick={uploadMeal} className="rounded-xl bg-white px-4 py-2 text-sm font-bold ring-1 ring-slate-200">식단표 업로드</button><button onClick={() => setChecked(students.reduce((a, s) => ({ ...a, [s.id]: true }), {}))} className="rounded-xl bg-[#173F4F] px-4 py-2 text-sm font-bold text-white">QR 일괄 확인</button></div>} />{uploaded && <div className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">식단표 업로드 완료 · 교육생 포털에 즉시 반영되었습니다.</div>}<div className="grid gap-4 md:grid-cols-4"><KPI title="조식" value="92명" sub="예정" icon={Utensils} /><KPI title="중식" value="96명" sub="예정" icon={Utensils} /><KPI title="식사확인" value={`${checkedCount}/12`} sub="QR 확인" icon={QrCode} /><KPI title="식단표" value={mealMenu.updatedAt.includes("업로드") ? "등록" : "대기"} sub={mealMenu.updatedAt} icon={FileText} /></div><div className="mt-5 grid gap-5 xl:grid-cols-2"><Card><h2 className="mb-3 font-black">현재 식단표</h2>{Object.entries({ 조식: mealMenu.breakfast, 중식: mealMenu.lunch, 석식: mealMenu.dinner }).map(([k, v]) => <div key={k} className="mb-2 rounded-xl bg-slate-50 p-3"><b>{k}</b><p className="text-sm text-slate-600">{v}</p></div>)}</Card><Card><h2 className="mb-3 font-black">식사 확인</h2><div className="overflow-x-auto"><table className="w-full text-left text-sm"><tbody className="divide-y divide-slate-100">{students.slice(0, 8).map((s) => <tr key={s.id}><td className="p-3 font-bold">{s.name}</td><td className="p-3">중식</td><td className="p-3">{checked[s.id] ? <Badge color="green">확인</Badge> : <Badge color="amber">미확인</Badge>}</td><td className="p-3 text-right"><button onClick={() => setChecked({ ...checked, [s.id]: !checked[s.id] })} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold">{checked[s.id] ? "취소" : "확인"}</button></td></tr>)}</tbody></table></div></Card></div></>;
 }
 
-function FacilityPage({ facilityRows, setFacilityRows, field }) {
+function FacilityPage({ facilityRows, setFacilityRows, assignedFields }) {
   const changeStatus = (id, status) => setFacilityRows(facilityRows.map((x) => x.id === id ? { ...x, status } : x));
   const statusColor = { 접수: "slate", 처리중: "amber", 완료: "green" };
-  const rows = facilityRows.filter((r) => r.field === field);
+  const rows = facilityRows.filter((r) => assignedFields.includes(r.field));
+  const subText = assignedFields.length > 0 ? `담당 분야(${assignedFields.join("·")}) 신고를 접수·처리중·완료 버튼으로 변경` : "담당 분야가 없습니다. 관리자에게 권한 부여를 요청하세요.";
   return (
     <>
-      <PageTitle title="시설처리" sub={`${field} 분야 신고를 접수·처리중·완료 버튼으로 변경`} />
+      <PageTitle title="시설처리" sub={subText} />
       <Card>
-        {rows.length === 0 && <div className="p-6 text-center text-sm text-slate-400">접수된 {field} 분야 신고가 없습니다.</div>}
+        {rows.length === 0 && <div className="p-6 text-center text-sm text-slate-400">{assignedFields.length === 0 ? "부여된 담당 분야가 없어 신고 내역이 표시되지 않습니다." : "접수된 담당 분야 신고가 없습니다."}</div>}
         {rows.map((r) => <div key={r.id} className="mb-3 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200"><div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><div className="flex flex-wrap gap-2"><Badge color="blue">{r.field}</Badge><span className="text-xs text-slate-400">{r.time}</span></div><div className="mt-2 font-black">{r.title}</div><div className="text-sm text-slate-500">{r.place}</div></div><div className="flex flex-wrap items-center gap-2"><Badge color={statusColor[r.status]}>{r.status}</Badge>{["접수", "처리중", "완료"].map((s) => <button key={s} onClick={() => changeStatus(r.id, s)} className={cx("rounded-xl px-3 py-2 text-xs font-bold ring-1", r.status === s ? "bg-[#173F4F] text-white ring-[#173F4F]" : "bg-white text-slate-600 ring-slate-200")}>{s}</button>)}</div></div></div>)}
       </Card>
     </>
@@ -1400,12 +1418,15 @@ function StudentMobile({ notices, setNotices, scheduleRows, mealMenu, busRows })
 }
 
 function AppContent(props) {
-  const { userId, page } = props;
-  if (userId === "admin") return page === "access" ? <AccessPage /> : <AdminDashboard {...props} />;
+  const { userId, page, accessRows, setAccessRows } = props;
+  if (userId === "admin") return page === "access" ? <AccessPage accessRows={accessRows} setAccessRows={setAccessRows} /> : <AdminDashboard {...props} />;
   if (userId === "course") return page === "notice" ? <NoticePage {...props} /> : page === "prep" ? <OperationPrepPage {...props} /> : <BusPage {...props} />;
   if (userId === "room") return <RoomPage {...props} />;
   if (userId === "meal") return <MealPage {...props} />;
-  if (FACILITY_FIELD_BY_USER[userId]) return <FacilityPage {...props} field={FACILITY_FIELD_BY_USER[userId]} />;
+  if (userId === "facility") {
+    const assignedFields = accessRows.find((r) => r.userKey === "facility")?.facilityFields || [];
+    return <FacilityPage {...props} assignedFields={assignedFields} />;
+  }
   if (userId === "escort") return <BoardingPage {...props} />;
   return <StudentMobile {...props} />;
 }
@@ -1419,11 +1440,12 @@ export default function SmartCampusPrototype() {
   const [scheduleRows, setScheduleRows] = useState(initialScheduleRows);
   const [mealMenu, setMealMenu] = useState(initialMealMenu);
   const [facilityRows, setFacilityRows] = useState(initialFacilityRows);
+  const [accessRows, setAccessRows] = useState(initialAccessRows);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const defaultPage = { admin: "dashboard", course: "bus", room: "room", meal: "meal", facility_comm: "facility", facility_equip: "facility", facility_mech: "facility", facility_fire: "facility", escort: "boarding", student: "mobile" };
+  const defaultPage = { admin: "dashboard", course: "bus", room: "room", meal: "meal", facility: "facility", escort: "boarding", student: "mobile" };
   const [page, setPage] = useState(defaultPage[userId]);
   function changeUser(id) { setUserId(id); setPage(defaultPage[id]); setMobileNavOpen(false); }
   const unread = notices.filter((n) => n.unread).length;
-  const props = { userId, page, setPage, busRows, setBusRows, roomOpen, setRoomOpen, notices, setNotices, scheduleRows, setScheduleRows, mealMenu, setMealMenu, facilityRows, setFacilityRows };
+  const props = { userId, page, setPage, busRows, setBusRows, roomOpen, setRoomOpen, notices, setNotices, scheduleRows, setScheduleRows, mealMenu, setMealMenu, facilityRows, setFacilityRows, accessRows, setAccessRows };
   return <div className="min-h-screen bg-slate-100 text-slate-900"><TopBar userId={userId} setUserId={changeUser} unread={unread} onBell={() => setNoticeOpen(!noticeOpen)} onMenuClick={() => setMobileNavOpen(true)} /><NotificationPanel open={noticeOpen} notices={notices} onClose={() => setNoticeOpen(false)} onReadAll={() => setNotices(notices.map((n) => ({ ...n, unread: false })))} /><div className="flex min-h-[calc(100vh-4rem)]"><Sidebar userId={userId} page={page} setPage={setPage} mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} /><main className={cx("min-w-0 flex-1", userId === "student" ? "p-0 sm:p-4 lg:p-6" : "p-4 lg:p-6")}><AppContent {...props} /></main></div></div>;
 }
