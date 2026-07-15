@@ -179,17 +179,17 @@ function ProgressRow({ label, value, color = "bg-[#173F4F]" }) {
   return (
     <div>
       <div className="mb-1 flex justify-between text-xs font-bold text-slate-500"><span>{label}</span><span>{value}%</span></div>
-      <div className="h-2 rounded-full bg-slate-200"><div className={cx("h-2 rounded-full", color)} style={{ width: `${value}%` }} /></div>
+      <div className="h-2 overflow-hidden rounded-full bg-slate-200"><div className={cx("h-2 rounded-full", color)} style={{ width: `${Math.min(100, value)}%` }} /></div>
     </div>
   );
 }
 
-function TopBar({ userId, setUserId, unread, onBell }) {
+function TopBar({ userId, setUserId, unread, onBell, onMenuClick }) {
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white">
       <div className="flex h-16 items-center justify-between px-4 lg:px-6">
         <div className="flex items-center gap-3">
-          <button className="rounded-xl p-2 hover:bg-slate-100 lg:hidden"><Menu size={20} /></button>
+          <button onClick={onMenuClick} className="rounded-xl p-2 hover:bg-slate-100 lg:hidden"><Menu size={20} /></button>
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#173F4F] text-white"><Home size={20} /></div>
           <div>
             <div className="font-black text-slate-900">Smart Campus DX</div>
@@ -210,7 +210,7 @@ function TopBar({ userId, setUserId, unread, onBell }) {
   );
 }
 
-function Sidebar({ userId, page, setPage }) {
+function Sidebar({ userId, page, setPage, mobileOpen, onClose }) {
   const menusByUser = {
     admin: [["dashboard", "대시보드", Home], ["access", "권한관리", ShieldCheck]],
     course: [["bus", "버스관리", Bus], ["notice", "공지/안내", FileText], ["prep", "운영준비", Settings2]],
@@ -222,21 +222,36 @@ function Sidebar({ userId, page, setPage }) {
   };
   const menus = menusByUser[userId] || [];
   const user = demoUsers.find((u) => u.id === userId);
-  return (
-    <aside className="hidden w-64 shrink-0 border-r border-slate-200 bg-white p-4 lg:block">
+  const navContent = (
+    <>
       <div className="rounded-2xl bg-slate-50 p-4">
         <div className="text-sm font-black text-slate-900">{user.name}</div>
         <div className="mt-1 text-xs text-slate-500">{user.role}</div>
       </div>
       <nav className="mt-5 space-y-1">
         {menus.map(([id, label, Icon]) => (
-          <button key={id} onClick={() => setPage(id)} className={cx("flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold", page === id ? "bg-[#173F4F] text-white" : "text-slate-600 hover:bg-slate-100")}>
+          <button
+            key={id}
+            onClick={() => { setPage(id); onClose && onClose(); }}
+            className={cx("flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold", page === id ? "bg-[#173F4F] text-white" : "text-slate-600 hover:bg-slate-100")}
+          >
             <Icon size={18} />{label}
           </button>
         ))}
       </nav>
       <button className="absolute bottom-4 flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-slate-500"><LogOut size={17} />로그아웃</button>
-    </aside>
+    </>
+  );
+  return (
+    <>
+      <aside className="relative hidden w-64 shrink-0 border-r border-slate-200 bg-white p-4 lg:block">{navContent}</aside>
+      {mobileOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
+          <aside className="absolute inset-y-0 left-0 w-72 max-w-[80vw] overflow-y-auto bg-white p-4 shadow-xl">{navContent}</aside>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -275,10 +290,10 @@ function AdminStatusTab({ busRows, roomOpen, notices, scheduleRows, mealMenu, fa
       <div className="mt-5 grid gap-5 xl:grid-cols-3">
         <Card className="xl:col-span-2">
           <div className="mb-4 flex items-center justify-between"><h2 className="font-black">보고 지표 요약</h2><Badge color="blue">보고용</Badge></div>
-          <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto"><table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="p-3">구분</th><th className="p-3">현황</th><th className="p-3">진행률</th><th className="p-3">상태</th></tr></thead>
             <tbody className="divide-y divide-slate-100">{reportRows.map((r) => <tr key={r[0]}><td className="p-3 font-bold">{r[0]}</td><td className="p-3">{r[1]}</td><td className="p-3">{r[2]}</td><td className="p-3"><Badge color={r[3] === "정상" ? "green" : r[3] === "확인필요" ? "red" : "amber"}>{r[3]}</Badge></td></tr>)}</tbody>
-          </table>
+          </table></div>
         </Card>
         <Card>
           <h2 className="mb-3 font-black">KPI 추이</h2>
@@ -453,7 +468,7 @@ function AdminDashboard({ busRows, roomOpen, notices, scheduleRows, mealMenu, fa
 function AccessPage() {
   const [notice, setNotice] = useState("");
   const rows = [["과정담당자", "버스관리, 공지/안내, 운영준비", "담당 과정", "노선확정·공지작성·시간표업로드·시간표합반"], ["객실담당자", "객실관리", "전체 객실", "신청기간·자동배정·수동조정"], ["식당담당자", "식당관리", "식당 운영", "식단표업로드·식수확인"], ["시설담당자", "시설처리", "담당 분야 신고", "접수·처리중·완료 변경"], ["버스 인솔자", "탑승확인", "배정 차량", "QR·수동체크"]];
-  return <><PageTitle title="사용자/권한 관리" sub="담당자별 메뉴, 데이터 범위, 처리권한 설정" action={<button onClick={() => setNotice("신규 사용자 등록 화면이 열렸습니다.")} className="rounded-xl bg-[#173F4F] px-4 py-2 text-sm font-bold text-white">사용자 추가</button>} />{notice && <div className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700 ring-1 ring-emerald-200">{notice}</div>}<Card><table className="w-full text-left text-sm"><thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="p-3">사용자</th><th className="p-3">메뉴</th><th className="p-3">데이터 범위</th><th className="p-3">처리권한</th><th className="p-3" /></tr></thead><tbody className="divide-y divide-slate-100">{rows.map((r) => <tr key={r[0]}><td className="p-3 font-bold">{r[0]}</td><td className="p-3">{r[1]}</td><td className="p-3">{r[2]}</td><td className="p-3">{r[3]}</td><td className="p-3 text-right"><button onClick={() => setNotice(`${r[0]} 권한 수정 패널을 열었습니다.`)} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold">수정</button></td></tr>)}</tbody></table></Card></>;
+  return <><PageTitle title="사용자/권한 관리" sub="담당자별 메뉴, 데이터 범위, 처리권한 설정" action={<button onClick={() => setNotice("신규 사용자 등록 화면이 열렸습니다.")} className="rounded-xl bg-[#173F4F] px-4 py-2 text-sm font-bold text-white">사용자 추가</button>} />{notice && <div className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700 ring-1 ring-emerald-200">{notice}</div>}<Card><div className="overflow-x-auto"><table className="w-full min-w-[560px] text-left text-sm"><thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="p-3">사용자</th><th className="p-3">메뉴</th><th className="p-3">데이터 범위</th><th className="p-3">처리권한</th><th className="p-3" /></tr></thead><tbody className="divide-y divide-slate-100">{rows.map((r) => <tr key={r[0]}><td className="p-3 font-bold">{r[0]}</td><td className="p-3">{r[1]}</td><td className="p-3">{r[2]}</td><td className="p-3">{r[3]}</td><td className="p-3 text-right"><button onClick={() => setNotice(`${r[0]} 권한 수정 패널을 열었습니다.`)} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold">수정</button></td></tr>)}</tbody></table></div></Card></>;
 }
 
 function BusPage({ busRows, setBusRows, setNotices }) {
@@ -467,11 +482,11 @@ function BusPage({ busRows, setBusRows, setNotices }) {
   const vendorList = students.filter((s) => s.bus !== "자차").slice(0, 8);
   return (
     <>
-      <PageTitle title="버스관리" sub={`${course.name} · 노선/요일 수요조사 후 담당자가 시간 확정`} action={<div className="flex gap-2"><button onClick={() => { setVendorOpen(true); setMsg("업체 제출용 명단 미리보기가 생성되었습니다."); }} className="rounded-xl bg-white px-4 py-2 text-sm font-bold ring-1 ring-slate-200"><FileDown size={16} className="inline" /> 업체명단 생성</button><button onClick={confirm} className="rounded-xl bg-[#173F4F] px-4 py-2 text-sm font-bold text-white">노선/시간 확정</button></div>} />
+      <PageTitle title="버스관리" sub={`${course.name} · 노선/요일 수요조사 후 담당자가 시간 확정`} action={<div className="flex flex-wrap gap-2"><button onClick={() => { setVendorOpen(true); setMsg("업체 제출용 명단 미리보기가 생성되었습니다."); }} className="rounded-xl bg-white px-4 py-2 text-sm font-bold ring-1 ring-slate-200"><FileDown size={16} className="inline" /> 업체명단 생성</button><button onClick={confirm} className="rounded-xl bg-[#173F4F] px-4 py-2 text-sm font-bold text-white">노선/시간 확정</button></div>} />
       {msg && <div className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700 ring-1 ring-emerald-200">{msg}</div>}
       <div className="grid gap-4 md:grid-cols-4"><KPI title="수요조사" value="95명" sub="자차 11명 포함" icon={Users} /><KPI title="차량" value="4대" sub="입·퇴소 포함" icon={Bus} /><KPI title="탑승완료" value={`${busRows.reduce((a,b)=>a+b.boarded,0)}명`} sub="실시간 집계" icon={CheckCircle2} /><KPI title="미탑승" value="23명" sub="확인 필요" icon={Search} /></div>
-      <Card className="mt-5"><table className="w-full text-left text-sm"><thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="p-3">구분</th><th className="p-3">노선</th><th className="p-3">요일</th><th className="p-3">확정시간</th><th className="p-3">차량</th><th className="p-3">예약</th><th className="p-3">상태</th></tr></thead><tbody className="divide-y divide-slate-100">{busRows.map((b) => <tr key={b.id}><td className="p-3 font-bold">{b.type}</td><td className="p-3">{b.route}</td><td className="p-3">{b.day}</td><td className="p-3">{b.time}</td><td className="p-3">{b.vehicle}</td><td className="p-3">{b.reserved}/{b.seats}</td><td className="p-3"><Badge color={b.status === "확정" ? "green" : "amber"}>{b.status}</Badge></td></tr>)}</tbody></table></Card>
-      {vendorOpen && <Card className="mt-5"><div className="mb-4 flex items-center justify-between"><div><h2 className="font-black">업체 제출용 명단 미리보기</h2><p className="mt-1 text-xs text-slate-500">엑셀/CSV 다운로드 시 노선별 탑승자 명단으로 생성되는 형식</p></div><Badge color="blue">CSV 생성</Badge></div><table className="w-full text-left text-sm"><thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="p-3">노선</th><th className="p-3">요일</th><th className="p-3">차량</th><th className="p-3">성명</th><th className="p-3">소속</th><th className="p-3">연락처</th><th className="p-3">좌석</th><th className="p-3">탑승</th></tr></thead><tbody className="divide-y divide-slate-100">{vendorList.map((s) => <tr key={s.id}><td className="p-3">{s.bus}</td><td className="p-3">{s.day}</td><td className="p-3">{s.bus === "광주송정역" ? "1호차" : s.bus === "부산역" ? "2호차" : "3호차"}</td><td className="p-3 font-bold">{s.name}</td><td className="p-3">{s.dept}</td><td className="p-3">{s.phone}</td><td className="p-3">{s.seat}</td><td className="p-3"><Badge color={s.boarded ? "green" : "amber"}>{s.boarded ? "탑승" : "미탑승"}</Badge></td></tr>)}</tbody></table></Card>}
+      <Card className="mt-5"><div className="overflow-x-auto"><table className="w-full min-w-[640px] text-left text-sm"><thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="p-3">구분</th><th className="p-3">노선</th><th className="p-3">요일</th><th className="p-3">확정시간</th><th className="p-3">차량</th><th className="p-3">예약</th><th className="p-3">상태</th></tr></thead><tbody className="divide-y divide-slate-100">{busRows.map((b) => <tr key={b.id}><td className="p-3 font-bold">{b.type}</td><td className="p-3">{b.route}</td><td className="p-3">{b.day}</td><td className="p-3">{b.time}</td><td className="p-3">{b.vehicle}</td><td className="p-3">{b.reserved}/{b.seats}</td><td className="p-3"><Badge color={b.status === "확정" ? "green" : "amber"}>{b.status}</Badge></td></tr>)}</tbody></table></div></Card>
+      {vendorOpen && <Card className="mt-5"><div className="mb-4 flex items-center justify-between"><div><h2 className="font-black">업체 제출용 명단 미리보기</h2><p className="mt-1 text-xs text-slate-500">엑셀/CSV 다운로드 시 노선별 탑승자 명단으로 생성되는 형식</p></div><Badge color="blue">CSV 생성</Badge></div><div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="p-3">노선</th><th className="p-3">요일</th><th className="p-3">차량</th><th className="p-3">성명</th><th className="p-3">소속</th><th className="p-3">연락처</th><th className="p-3">좌석</th><th className="p-3">탑승</th></tr></thead><tbody className="divide-y divide-slate-100">{vendorList.map((s) => <tr key={s.id}><td className="p-3">{s.bus}</td><td className="p-3">{s.day}</td><td className="p-3">{s.bus === "광주송정역" ? "1호차" : s.bus === "부산역" ? "2호차" : "3호차"}</td><td className="p-3 font-bold">{s.name}</td><td className="p-3">{s.dept}</td><td className="p-3">{s.phone}</td><td className="p-3">{s.seat}</td><td className="p-3"><Badge color={s.boarded ? "green" : "amber"}>{s.boarded ? "탑승" : "미탑승"}</Badge></td></tr>)}</tbody></table></div></Card>}
     </>
   );
 }
@@ -587,7 +602,7 @@ function ScheduleConverter() {
               자동 복사가 지원되지 않는 환경입니다. 아래 결과가 자동 선택되었으니 Ctrl+C로 복사해주세요.
             </div>
           )}
-          <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto"><table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs text-slate-500">
               <tr><th className="p-3">반</th><th className="p-3">시작</th><th className="p-3">종료</th><th className="p-3">과목</th><th className="p-3">강의실</th></tr>
             </thead>
@@ -602,7 +617,7 @@ function ScheduleConverter() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
           <textarea ref={outputRef} readOnly value={outputText} className="mt-2 h-24 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-mono text-slate-500" />
         </div>
       )}
@@ -809,7 +824,7 @@ function ScheduleEditor({ scheduleRows, setScheduleRows, setNotices }) {
     <Card>
       <div className="mb-1 flex items-center justify-between">
         <h2 className="font-black">시간표 편집</h2>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button onClick={() => setPasteMode((v) => !v)} className={cx("rounded-full px-3 py-1.5 text-xs font-bold ring-1", pasteMode ? "bg-[#173F4F] text-white ring-[#173F4F]" : "bg-white text-slate-500 ring-slate-200")}>엑셀 붙여넣기</button>
           <button onClick={() => setAddOpen((v) => !v)} className="rounded-full bg-amber-500 px-3 py-1.5 text-xs font-bold text-white">+ 직접 추가</button>
         </div>
@@ -1029,7 +1044,7 @@ function RoomPage({ roomOpen, setRoomOpen }) {
   const [finalized, setFinalized] = useState(false);
   const assignedRows = useMemo(() => autoAssignRoom(students), []);
   const rooms = assignedRows.reduce((a, s) => ((a[s.room] = [...(a[s.room] || []), s]), a), {});
-  return <><PageTitle title="객실관리" sub="4인실 기준 객실 신청 및 자동배정" action={<div className="flex gap-2"><button onClick={() => { setRoomOpen(true); setAssigned(false); setFinalized(false); }} className="rounded-xl bg-white px-4 py-2 text-sm font-bold ring-1 ring-slate-200">신청기간 열기</button><button onClick={() => setRoomOpen(false)} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white">신청기간 종료</button></div>} /><div className="grid gap-4 md:grid-cols-4"><KPI title="신청상태" value={roomOpen ? "진행중" : "종료"} sub="객실담당자 권한" icon={CalendarDays} /><KPI title="신청인원" value="96명" sub="전체 교육생" icon={Users} /><KPI title="예외요청" value="5건" sub="동일객실/건강상" icon={FileText} /><KPI title="배정상태" value={finalized ? "확정" : assigned ? "검토" : "대기"} sub="남녀 분리" icon={BedDouble} /></div><Card className="mt-5"><div className="mb-4 flex items-center justify-between"><h2 className="font-black">자동배정</h2><div className="flex gap-2"><button disabled={roomOpen} onClick={() => setAssigned(true)} className={cx("rounded-xl px-4 py-2 text-sm font-bold text-white", roomOpen ? "bg-slate-300" : "bg-[#173F4F]")}>자동배정 실행</button><button disabled={!assigned} onClick={() => setFinalized(true)} className={cx("rounded-xl px-4 py-2 text-sm font-bold text-white", assigned ? "bg-emerald-600" : "bg-slate-300")}>배정확정</button></div></div>{roomOpen && <div className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-700">신청기간 종료 후 자동배정을 실행할 수 있습니다.</div>}{finalized && <div className="mb-3 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">배정이 확정되어 교육생 포털에 표시됩니다.</div>}<div className="mt-4 grid gap-3 xl:grid-cols-3">{Object.entries(rooms).map(([room, people]) => <div key={room} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200"><div className="mb-3 flex justify-between"><b>{room}</b><Badge color={people[0].gender === "남" ? "blue" : "purple"}>{people[0].gender} {people.length}/4</Badge></div>{people.map((p) => <div key={p.id} className="mb-2 rounded-xl bg-white p-3 text-sm"><b>{p.name}</b><span className="ml-2 text-xs text-slate-500">{p.region} · {p.age}세 · {p.rank}</span>{p.request && <div className="mt-1 text-xs text-amber-700">{p.request}</div>}</div>)}</div>)}</div></Card></>;
+  return <><PageTitle title="객실관리" sub="4인실 기준 객실 신청 및 자동배정" action={<div className="flex flex-wrap gap-2"><button onClick={() => { setRoomOpen(true); setAssigned(false); setFinalized(false); }} className="rounded-xl bg-white px-4 py-2 text-sm font-bold ring-1 ring-slate-200">신청기간 열기</button><button onClick={() => setRoomOpen(false)} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white">신청기간 종료</button></div>} /><div className="grid gap-4 md:grid-cols-4"><KPI title="신청상태" value={roomOpen ? "진행중" : "종료"} sub="객실담당자 권한" icon={CalendarDays} /><KPI title="신청인원" value="96명" sub="전체 교육생" icon={Users} /><KPI title="예외요청" value="5건" sub="동일객실/건강상" icon={FileText} /><KPI title="배정상태" value={finalized ? "확정" : assigned ? "검토" : "대기"} sub="남녀 분리" icon={BedDouble} /></div><Card className="mt-5"><div className="mb-4 flex items-center justify-between"><h2 className="font-black">자동배정</h2><div className="flex flex-wrap gap-2"><button disabled={roomOpen} onClick={() => setAssigned(true)} className={cx("rounded-xl px-4 py-2 text-sm font-bold text-white", roomOpen ? "bg-slate-300" : "bg-[#173F4F]")}>자동배정 실행</button><button disabled={!assigned} onClick={() => setFinalized(true)} className={cx("rounded-xl px-4 py-2 text-sm font-bold text-white", assigned ? "bg-emerald-600" : "bg-slate-300")}>배정확정</button></div></div>{roomOpen && <div className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-700">신청기간 종료 후 자동배정을 실행할 수 있습니다.</div>}{finalized && <div className="mb-3 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">배정이 확정되어 교육생 포털에 표시됩니다.</div>}<div className="mt-4 grid gap-3 xl:grid-cols-3">{Object.entries(rooms).map(([room, people]) => <div key={room} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200"><div className="mb-3 flex justify-between"><b>{room}</b><Badge color={people[0].gender === "남" ? "blue" : "purple"}>{people[0].gender} {people.length}/4</Badge></div>{people.map((p) => <div key={p.id} className="mb-2 rounded-xl bg-white p-3 text-sm"><b>{p.name}</b><span className="ml-2 text-xs text-slate-500">{p.region} · {p.age}세 · {p.rank}</span>{p.request && <div className="mt-1 text-xs text-amber-700">{p.request}</div>}</div>)}</div>)}</div></Card></>;
 }
 
 function MealPage({ mealMenu, setMealMenu, setNotices }) {
@@ -1041,13 +1056,13 @@ function MealPage({ mealMenu, setMealMenu, setNotices }) {
     setUploaded(true);
     setNotices((prev) => [{ id: Date.now(), title: "식단표가 등록되었습니다.", body: "교육생 포털의 오늘 식단이 최신 식단표로 반영되었습니다.", time: "방금", unread: true, urgent: false }, ...prev]);
   };
-  return <><PageTitle title="식당관리" sub="식단표 업로드 및 식사 확인" action={<div className="flex gap-2"><button onClick={uploadMeal} className="rounded-xl bg-white px-4 py-2 text-sm font-bold ring-1 ring-slate-200">식단표 업로드</button><button onClick={() => setChecked(students.reduce((a, s) => ({ ...a, [s.id]: true }), {}))} className="rounded-xl bg-[#173F4F] px-4 py-2 text-sm font-bold text-white">QR 일괄 확인</button></div>} />{uploaded && <div className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">식단표 업로드 완료 · 교육생 포털에 즉시 반영되었습니다.</div>}<div className="grid gap-4 md:grid-cols-4"><KPI title="조식" value="92명" sub="예정" icon={Utensils} /><KPI title="중식" value="96명" sub="예정" icon={Utensils} /><KPI title="식사확인" value={`${checkedCount}/12`} sub="QR 확인" icon={QrCode} /><KPI title="식단표" value={mealMenu.updatedAt.includes("업로드") ? "등록" : "대기"} sub={mealMenu.updatedAt} icon={FileText} /></div><div className="mt-5 grid gap-5 xl:grid-cols-2"><Card><h2 className="mb-3 font-black">현재 식단표</h2>{Object.entries({ 조식: mealMenu.breakfast, 중식: mealMenu.lunch, 석식: mealMenu.dinner }).map(([k, v]) => <div key={k} className="mb-2 rounded-xl bg-slate-50 p-3"><b>{k}</b><p className="text-sm text-slate-600">{v}</p></div>)}</Card><Card><h2 className="mb-3 font-black">식사 확인</h2><table className="w-full text-left text-sm"><tbody className="divide-y divide-slate-100">{students.slice(0, 8).map((s) => <tr key={s.id}><td className="p-3 font-bold">{s.name}</td><td className="p-3">중식</td><td className="p-3">{checked[s.id] ? <Badge color="green">확인</Badge> : <Badge color="amber">미확인</Badge>}</td><td className="p-3 text-right"><button onClick={() => setChecked({ ...checked, [s.id]: !checked[s.id] })} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold">{checked[s.id] ? "취소" : "확인"}</button></td></tr>)}</tbody></table></Card></div></>;
+  return <><PageTitle title="식당관리" sub="식단표 업로드 및 식사 확인" action={<div className="flex flex-wrap gap-2"><button onClick={uploadMeal} className="rounded-xl bg-white px-4 py-2 text-sm font-bold ring-1 ring-slate-200">식단표 업로드</button><button onClick={() => setChecked(students.reduce((a, s) => ({ ...a, [s.id]: true }), {}))} className="rounded-xl bg-[#173F4F] px-4 py-2 text-sm font-bold text-white">QR 일괄 확인</button></div>} />{uploaded && <div className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">식단표 업로드 완료 · 교육생 포털에 즉시 반영되었습니다.</div>}<div className="grid gap-4 md:grid-cols-4"><KPI title="조식" value="92명" sub="예정" icon={Utensils} /><KPI title="중식" value="96명" sub="예정" icon={Utensils} /><KPI title="식사확인" value={`${checkedCount}/12`} sub="QR 확인" icon={QrCode} /><KPI title="식단표" value={mealMenu.updatedAt.includes("업로드") ? "등록" : "대기"} sub={mealMenu.updatedAt} icon={FileText} /></div><div className="mt-5 grid gap-5 xl:grid-cols-2"><Card><h2 className="mb-3 font-black">현재 식단표</h2>{Object.entries({ 조식: mealMenu.breakfast, 중식: mealMenu.lunch, 석식: mealMenu.dinner }).map(([k, v]) => <div key={k} className="mb-2 rounded-xl bg-slate-50 p-3"><b>{k}</b><p className="text-sm text-slate-600">{v}</p></div>)}</Card><Card><h2 className="mb-3 font-black">식사 확인</h2><div className="overflow-x-auto"><table className="w-full text-left text-sm"><tbody className="divide-y divide-slate-100">{students.slice(0, 8).map((s) => <tr key={s.id}><td className="p-3 font-bold">{s.name}</td><td className="p-3">중식</td><td className="p-3">{checked[s.id] ? <Badge color="green">확인</Badge> : <Badge color="amber">미확인</Badge>}</td><td className="p-3 text-right"><button onClick={() => setChecked({ ...checked, [s.id]: !checked[s.id] })} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold">{checked[s.id] ? "취소" : "확인"}</button></td></tr>)}</tbody></table></div></Card></div></>;
 }
 
 function FacilityPage({ facilityRows, setFacilityRows }) {
   const changeStatus = (id, status) => setFacilityRows(facilityRows.map((x) => x.id === id ? { ...x, status } : x));
   const statusColor = { 접수: "slate", 처리중: "amber", 완료: "green" };
-  return <><PageTitle title="시설처리" sub="담당 분야 신고를 접수·처리중·완료 버튼으로 변경" /><Card>{facilityRows.map((r) => <div key={r.id} className="mb-3 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200"><div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><div className="flex gap-2"><Badge color="blue">{r.field}</Badge><span className="text-xs text-slate-400">{r.time}</span></div><div className="mt-2 font-black">{r.title}</div><div className="text-sm text-slate-500">{r.place}</div></div><div className="flex flex-wrap items-center gap-2"><Badge color={statusColor[r.status]}>{r.status}</Badge>{["접수", "처리중", "완료"].map((s) => <button key={s} onClick={() => changeStatus(r.id, s)} className={cx("rounded-xl px-3 py-2 text-xs font-bold ring-1", r.status === s ? "bg-[#173F4F] text-white ring-[#173F4F]" : "bg-white text-slate-600 ring-slate-200")}>{s}</button>)}</div></div></div>)}</Card></>;
+  return <><PageTitle title="시설처리" sub="담당 분야 신고를 접수·처리중·완료 버튼으로 변경" /><Card>{facilityRows.map((r) => <div key={r.id} className="mb-3 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200"><div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><div className="flex flex-wrap gap-2"><Badge color="blue">{r.field}</Badge><span className="text-xs text-slate-400">{r.time}</span></div><div className="mt-2 font-black">{r.title}</div><div className="text-sm text-slate-500">{r.place}</div></div><div className="flex flex-wrap items-center gap-2"><Badge color={statusColor[r.status]}>{r.status}</Badge>{["접수", "처리중", "완료"].map((s) => <button key={s} onClick={() => changeStatus(r.id, s)} className={cx("rounded-xl px-3 py-2 text-xs font-bold ring-1", r.status === s ? "bg-[#173F4F] text-white ring-[#173F4F]" : "bg-white text-slate-600 ring-slate-200")}>{s}</button>)}</div></div></div>)}</Card></>;
 }
 
 function BoardingPage({ busRows, setBusRows }) {
@@ -1167,10 +1182,11 @@ export default function SmartCampusPrototype() {
   const [scheduleRows, setScheduleRows] = useState(initialScheduleRows);
   const [mealMenu, setMealMenu] = useState(initialMealMenu);
   const [facilityRows, setFacilityRows] = useState(initialFacilityRows);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const defaultPage = { admin: "dashboard", course: "bus", room: "room", meal: "meal", facility: "facility", escort: "boarding", student: "mobile" };
   const [page, setPage] = useState(defaultPage[userId]);
-  function changeUser(id) { setUserId(id); setPage(defaultPage[id]); }
+  function changeUser(id) { setUserId(id); setPage(defaultPage[id]); setMobileNavOpen(false); }
   const unread = notices.filter((n) => n.unread).length;
   const props = { userId, page, setPage, busRows, setBusRows, roomOpen, setRoomOpen, notices, setNotices, scheduleRows, setScheduleRows, mealMenu, setMealMenu, facilityRows, setFacilityRows };
-  return <div className="min-h-screen bg-slate-100 text-slate-900"><TopBar userId={userId} setUserId={changeUser} unread={unread} onBell={() => setNoticeOpen(!noticeOpen)} /><NotificationPanel open={noticeOpen} notices={notices} onClose={() => setNoticeOpen(false)} onReadAll={() => setNotices(notices.map((n) => ({ ...n, unread: false })))} /><div className="flex min-h-[calc(100vh-4rem)]"><Sidebar userId={userId} page={page} setPage={setPage} /><main className={cx("flex-1", userId === "student" ? "p-0 sm:p-4 lg:p-6" : "p-4 lg:p-6")}><AppContent {...props} /></main></div></div>;
+  return <div className="min-h-screen bg-slate-100 text-slate-900"><TopBar userId={userId} setUserId={changeUser} unread={unread} onBell={() => setNoticeOpen(!noticeOpen)} onMenuClick={() => setMobileNavOpen(true)} /><NotificationPanel open={noticeOpen} notices={notices} onClose={() => setNoticeOpen(false)} onReadAll={() => setNotices(notices.map((n) => ({ ...n, unread: false })))} /><div className="flex min-h-[calc(100vh-4rem)]"><Sidebar userId={userId} page={page} setPage={setPage} mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} /><main className={cx("min-w-0 flex-1", userId === "student" ? "p-0 sm:p-4 lg:p-6" : "p-4 lg:p-6")}><AppContent {...props} /></main></div></div>;
 }
