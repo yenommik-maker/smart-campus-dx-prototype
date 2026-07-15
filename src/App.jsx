@@ -27,6 +27,7 @@ import {
   X,
 } from "lucide-react";
 import { PDFDocument } from "pdf-lib";
+import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 const cx = (...v) => v.filter(Boolean).join(" ");
 
@@ -49,18 +50,18 @@ const course = {
 };
 
 const initialScheduleRows = [
-  { time: "09:00~10:00", title: "입교식 및 과정 안내", room: "대강당", day: "월" },
-  { time: "10:10~12:00", title: "공단 이해 및 직무 기본", room: "A-201", day: "월" },
-  { time: "13:00~15:00", title: "민원응대 실습", room: "A-201", day: "월" },
-  { time: "15:10~17:00", title: "정보보안 및 개인정보보호", room: "전산실습실", day: "월" },
+  { id: 1, time: "09:00~10:00", title: "입교식 및 과정 안내", room: "대강당", day: "월" },
+  { id: 2, time: "10:10~12:00", title: "공단 이해 및 직무 기본", room: "A-201", day: "월" },
+  { id: 3, time: "13:00~15:00", title: "민원응대 실습", room: "A-201", day: "월" },
+  { id: 4, time: "15:10~17:00", title: "정보보안 및 개인정보보호", room: "전산실습실", day: "월" },
 ];
 
 const uploadedScheduleRows = [
-  { time: "09:00~10:30", title: "입교식 및 안전교육", room: "대강당", day: "월" },
-  { time: "10:40~12:00", title: "공단 이해 및 직무 기본", room: "A-201", day: "월" },
-  { time: "13:00~15:00", title: "현장 민원응대 실습", room: "A-203", day: "월" },
-  { time: "15:10~17:00", title: "정보보안 및 개인정보보호", room: "전산실습실", day: "월" },
-  { time: "09:00~12:00", title: "업무시스템 실습", room: "전산실습실", day: "화" },
+  { id: 5, time: "09:00~10:30", title: "입교식 및 안전교육", room: "대강당", day: "월" },
+  { id: 6, time: "10:40~12:00", title: "공단 이해 및 직무 기본", room: "A-201", day: "월" },
+  { id: 7, time: "13:00~15:00", title: "현장 민원응대 실습", room: "A-203", day: "월" },
+  { id: 8, time: "15:10~17:00", title: "정보보안 및 개인정보보호", room: "전산실습실", day: "월" },
+  { id: 9, time: "09:00~12:00", title: "업무시스템 실습", room: "전산실습실", day: "화" },
 ];
 
 const initialMealMenu = {
@@ -112,6 +113,18 @@ const initialFacilityRows = [
   { id: 1, field: "통신", title: "생활관 3층 Wi-Fi 불안정", place: "생활관 312호", status: "접수", time: "09:20" },
   { id: 2, field: "통신", title: "강의동 빔프로젝터 연결 불가", place: "강의실 A-201", status: "처리중", time: "10:05" },
   { id: 3, field: "통신", title: "인터넷 접속 지연", place: "생활관 215호", status: "완료", time: "11:40" },
+];
+
+const weeklyFacilityTrend = [
+  { day: "월", count: 5 }, { day: "화", count: 8 }, { day: "수", count: 6 },
+  { day: "목", count: 9 }, { day: "금", count: 4 }, { day: "토", count: 2 }, { day: "일", count: 1 },
+];
+
+const kpiCompareData = [
+  { name: "전화·방문\n문의", before: 100, after: 55 },
+  { name: "처리\n평균시간", before: 100, after: 70 },
+  { name: "재문의율", before: 100, after: 48 },
+  { name: "보고서\n작성시간", before: 100, after: 30 },
 ];
 
 const rankOrder = { 주임: 1, 대리: 2, 과장: 3, 차장: 4 };
@@ -242,13 +255,7 @@ function NotificationPanel({ open, notices, onClose, onReadAll }) {
   );
 }
 
-function AdminDashboard({ busRows, roomOpen, notices, scheduleRows, mealMenu, facilityRows }) {
-  const totalReserved = busRows.reduce((a, b) => a + b.reserved, 0);
-  const totalBoarded = busRows.reduce((a, b) => a + b.boarded, 0);
-  const busRate = Math.round((totalReserved / course.students) * 100);
-  const boardRate = Math.round((totalBoarded / totalReserved) * 100);
-  const facilityDone = facilityRows.filter((r) => r.status === "완료").length;
-  const facilityRate = Math.round((facilityDone / facilityRows.length) * 100);
+function AdminStatusTab({ busRows, roomOpen, notices, scheduleRows, mealMenu, facilityRows, busRate, boardRate, facilityDone, facilityRate, totalReserved, totalBoarded }) {
   const reportRows = [
     ["버스 수요조사", `${totalReserved}/${course.students}명`, `${busRate}%`, busRate >= 90 ? "정상" : "확인필요"],
     ["버스 탑승확인", `${totalBoarded}/${totalReserved}명`, `${boardRate}%`, boardRate >= 80 ? "정상" : "확인필요"],
@@ -259,7 +266,6 @@ function AdminDashboard({ busRows, roomOpen, notices, scheduleRows, mealMenu, fa
   ];
   return (
     <>
-      <PageTitle title="운영 대시보드" sub="내부보고용 KPI 및 업무 진행현황" />
       <div className="grid gap-4 md:grid-cols-4">
         <KPI title="운영 과정" value="4개" sub="진행 1 · 예정 3" icon={ClipboardCheck} />
         <KPI title="수요조사율" value={`${busRate}%`} sub={`${totalReserved}/${course.students}명`} icon={Bus} />
@@ -302,6 +308,144 @@ function AdminDashboard({ busRows, roomOpen, notices, scheduleRows, mealMenu, fa
           {["과정담당자가 시간표를 업로드했습니다.", "식당담당자가 식단표를 업로드했습니다.", "버스 업체 제출용 명단이 생성되었습니다.", "시설담당자가 상태를 처리중으로 변경했습니다."].map((x) => <div key={x} className="flex items-center justify-between border-b border-slate-100 py-2"><span className="text-sm">{x}</span><span className="text-xs text-slate-400">방금 전</span></div>)}
         </Card>
       </div>
+    </>
+  );
+}
+
+function AdminStatsTab() {
+  return (
+    <Card>
+      <h2 className="mb-3 font-black">주간 시설 신고·처리 추이</h2>
+      <div style={{ height: 260 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={weeklyFacilityTrend}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+            <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+            <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+            <Tooltip />
+            <Line type="monotone" dataKey="count" stroke="#173F4F" strokeWidth={2.5} dot={{ r: 4 }} isAnimationActive={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </Card>
+  );
+}
+
+function AdminKpiTab({ facilityDone, facilityRows, facilityRate, boardRate, totalBoarded, totalReserved }) {
+  const kpis = [
+    {
+      label: "당일 시설 처리 완료율",
+      value: `${facilityRate}%`,
+      target: "목표 90% 이상",
+      ok: facilityRate >= 90,
+      formula: "완료 건수 ÷ 접수 건수",
+    },
+    {
+      label: "평균 처리시간",
+      value: "2.4시간",
+      target: "목표 2.0시간 이하",
+      ok: false,
+      formula: "접수~완료 소요시간 평균 (최근 7일, 예시값)",
+    },
+    {
+      label: "동일 민원 재문의율",
+      value: "6%",
+      target: "목표 5% 이하",
+      ok: false,
+      formula: "처리완료 후 동일 사유 재신고 비율 (예시값)",
+    },
+    {
+      label: "버스 탑승 확인률",
+      value: `${boardRate}%`,
+      target: `${totalBoarded}/${totalReserved}명 기준`,
+      ok: boardRate >= 80,
+      formula: "탑승 확인 인원 ÷ 예약 인원",
+    },
+  ];
+  return (
+    <>
+      <Card>
+        <h2 className="mb-3 font-black">핵심 운영 지표 (KPI)</h2>
+        <div className="grid gap-4 md:grid-cols-2">
+          {kpis.map((k) => (
+            <div key={k.label} className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-100">
+              <div className="flex items-center justify-between">
+                <div className="text-xs text-slate-400">{k.label}</div>
+                {k.ok
+                  ? <Badge color="green">목표 충족</Badge>
+                  : <Badge color="amber">관찰 필요</Badge>}
+              </div>
+              <div className="mt-1 font-mono text-2xl font-bold text-slate-800">{k.value}</div>
+              <div className="mt-1 text-xs text-slate-500">{k.target}</div>
+              <div className="mt-2 border-t border-slate-200 pt-2 text-[11px] text-slate-400">{k.formula}</div>
+            </div>
+          ))}
+        </div>
+      </Card>
+      <Card className="mt-5">
+        <h2 className="mb-3 font-black">현행(100) 대비 목표 — 종합 비교</h2>
+        <div style={{ height: 240 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={kpiCompareData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 12 }} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} allowDataOverflow />
+              <Tooltip />
+              <Bar dataKey="before" name="현행" fill="#cbd5e1" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+              <Bar dataKey="after" name="목표" fill="#173F4F" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="mt-2 text-xs text-slate-400">※ 평균 처리시간·재문의율은 시범운영 데이터 확보 후 실측값으로 교체 필요</div>
+      </Card>
+    </>
+  );
+}
+
+function AdminReportTab({ facilityRows, facilityDone, busRate, boardRate, totalReserved, totalBoarded, notices }) {
+  const unreadCount = notices.filter((n) => n.unread).length;
+  const urgentUnread = notices.filter((n) => n.unread && n.urgent).length;
+  const inProgress = facilityRows.length - facilityDone;
+  return (
+    <Card>
+      <h2 className="mb-3 font-black">자동 생성 보고서 미리보기</h2>
+      <div className="rounded-xl bg-slate-50 p-5 font-mono text-sm leading-relaxed text-slate-600 ring-1 ring-slate-100">
+        <div className="mb-2 font-bold text-slate-800">{course.name} · 일일 운영 보고</div>
+        · 시설 신고 {facilityRows.length}건 / 완료 {facilityDone}건 / 처리중 {inProgress}건<br />
+        · 버스 수요조사 {totalReserved}/{course.students}명 ({busRate}%)<br />
+        · 버스 탑승 확인 {totalBoarded}/{totalReserved}명 ({boardRate}%)<br />
+        · 공지 미확인 {unreadCount}건 (긴급 {urgentUnread}건)<br />
+        · 전 항목은 담당자 처리 내역에서 자동 집계됨 (수기 작성 불필요)
+      </div>
+      <div className="mt-2 text-xs text-slate-400">※ 실제 운영 시 일/주/월 단위로 자동 발행되며 PDF·Excel로 추출됩니다.</div>
+    </Card>
+  );
+}
+
+function AdminDashboard({ busRows, roomOpen, notices, scheduleRows, mealMenu, facilityRows }) {
+  const [tab, setTab] = useState("status");
+  const totalReserved = busRows.reduce((a, b) => a + b.reserved, 0);
+  const totalBoarded = busRows.reduce((a, b) => a + b.boarded, 0);
+  const busRate = Math.round((totalReserved / course.students) * 100);
+  const boardRate = Math.round((totalBoarded / totalReserved) * 100);
+  const facilityDone = facilityRows.filter((r) => r.status === "완료").length;
+  const facilityRate = Math.round((facilityDone / facilityRows.length) * 100);
+  const shared = { busRows, roomOpen, notices, scheduleRows, mealMenu, facilityRows, busRate, boardRate, facilityDone, facilityRate, totalReserved, totalBoarded };
+
+  return (
+    <>
+      <PageTitle title="운영 대시보드" sub="내부보고용 KPI 및 업무 진행현황" />
+      <div className="mb-5 flex w-fit rounded-full bg-slate-100 p-0.5">
+        {[["status", "운영현황"], ["stats", "통계"], ["kpi", "KPI"], ["report", "보고서"]].map(([key, label]) => (
+          <button key={key} onClick={() => setTab(key)} className={cx("rounded-full px-4 py-1.5 text-xs font-bold", tab === key ? "bg-[#173F4F] text-white" : "text-slate-500")}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {tab === "status" && <AdminStatusTab {...shared} />}
+      {tab === "stats" && <AdminStatsTab />}
+      {tab === "kpi" && <AdminKpiTab {...shared} />}
+      {tab === "report" && <AdminReportTab {...shared} />}
     </>
   );
 }
@@ -595,19 +739,174 @@ function PdfMergeTool() {
   );
 }
 
-function OperationPrepPage() {
+// ---------- 운영준비: 시간표 편집 ----------
+function parseScheduleEdit(raw) {
+  const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
+  const rows = [];
+  let skipped = 0;
+  for (const line of lines) {
+    const parts = line.split("\t").map((p) => p.trim());
+    if (parts.length !== 5 || parts.some((p) => !p)) {
+      skipped++;
+      continue;
+    }
+    const [day, start, end, title, room] = parts;
+    rows.push({ id: Date.now() + Math.random(), day, time: `${start}~${end}`, title, room });
+  }
+  return { rows, skipped };
+}
+
+function ScheduleEditor({ scheduleRows, setScheduleRows, setNotices }) {
+  const [pasteMode, setPasteMode] = useState(false);
+  const [pasteText, setPasteText] = useState("");
+  const [editId, setEditId] = useState(null);
+  const [form, setForm] = useState({ day: "", start: "", end: "", title: "", room: "" });
+  const [addOpen, setAddOpen] = useState(false);
+
+  const notifyUpdated = () => {
+    setNotices((prev) => [{ id: Date.now(), title: "시간표가 변경되었습니다.", body: "교육생 포털의 시간표/강의실 정보가 최신 자료로 반영되었습니다.", time: "방금", unread: true, urgent: false }, ...prev]);
+  };
+
+  function handlePaste() {
+    const { rows } = parseScheduleEdit(pasteText);
+    if (rows.length === 0) return;
+    setScheduleRows(rows);
+    notifyUpdated();
+    setPasteMode(false);
+    setPasteText("");
+  }
+
+  function startEdit(row) {
+    setEditId(row.id);
+    const [start = "", end = ""] = row.time.split("~");
+    setForm({ day: row.day, start, end, title: row.title, room: row.room });
+  }
+
+  function saveEdit() {
+    setScheduleRows(scheduleRows.map((r) => (r.id === editId ? { ...r, day: form.day, time: `${form.start}~${form.end}`, title: form.title, room: form.room } : r)));
+    notifyUpdated();
+    setEditId(null);
+  }
+
+  function deleteRow(id) {
+    setScheduleRows(scheduleRows.filter((r) => r.id !== id));
+    notifyUpdated();
+  }
+
+  function addRow() {
+    setScheduleRows([...scheduleRows, { id: Date.now(), day: form.day, time: `${form.start}~${form.end}`, title: form.title, room: form.room }]);
+    notifyUpdated();
+    setForm({ day: "", start: "", end: "", title: "", room: "" });
+    setAddOpen(false);
+  }
+
+  const grouped = scheduleRows.reduce((acc, row) => {
+    (acc[row.day] ||= []).push(row);
+    return acc;
+  }, {});
+
+  return (
+    <Card>
+      <div className="mb-1 flex items-center justify-between">
+        <h2 className="font-black">시간표 편집</h2>
+        <div className="flex gap-2">
+          <button onClick={() => setPasteMode((v) => !v)} className={cx("rounded-full px-3 py-1.5 text-xs font-bold ring-1", pasteMode ? "bg-[#173F4F] text-white ring-[#173F4F]" : "bg-white text-slate-500 ring-slate-200")}>엑셀 붙여넣기</button>
+          <button onClick={() => setAddOpen((v) => !v)} className="rounded-full bg-amber-500 px-3 py-1.5 text-xs font-bold text-white">+ 직접 추가</button>
+        </div>
+      </div>
+      <p className="mb-3 text-xs text-slate-500">저장 즉시 교육생 포털의 시간표/강의실 정보에 반영됩니다.</p>
+
+      {pasteMode && (
+        <div className="mb-4 rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
+          <div className="mb-2 text-xs leading-relaxed text-slate-500">
+            엑셀에서 복사 후 아래에 붙여넣기 (탭 구분)<br />
+            <span className="rounded bg-slate-200 px-1 font-mono">요일 · 시작 · 종료 · 강의명 · 강의실</span>
+          </div>
+          <textarea
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+            placeholder={"월\t09:00\t10:00\t입교식 및 과정 안내\t대강당\n월\t10:10\t12:00\t공단 이해 및 직무 기본\tA-201"}
+            className="h-28 w-full resize-none rounded-lg border border-slate-200 p-2.5 font-mono text-xs outline-none focus:ring-2 focus:ring-[#173F4F]"
+          />
+          <div className="mt-2 flex gap-2">
+            <button onClick={handlePaste} className="rounded-lg bg-[#173F4F] px-4 py-1.5 text-xs font-bold text-white">적용 (기존 시간표 교체)</button>
+            <button onClick={() => { setPasteMode(false); setPasteText(""); }} className="text-xs text-slate-400 underline">취소</button>
+          </div>
+        </div>
+      )}
+
+      {addOpen && (
+        <div className="mb-4 grid grid-cols-3 gap-2 rounded-xl bg-amber-50 p-4 ring-1 ring-amber-200">
+          {[
+            { key: "day", ph: "요일 (월)" },
+            { key: "start", ph: "시작 (09:00)" },
+            { key: "end", ph: "종료 (10:00)" },
+            { key: "title", ph: "강의명" },
+            { key: "room", ph: "강의실 (201호)" },
+          ].map((f) => (
+            <input key={f.key} value={form[f.key]} onChange={(e) => setForm((s) => ({ ...s, [f.key]: e.target.value }))} placeholder={f.ph} className="rounded-lg border border-amber-200 bg-white px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-amber-400" />
+          ))}
+          <div className="col-span-3 mt-1 flex gap-2">
+            <button onClick={addRow} className="rounded-lg bg-[#173F4F] px-4 py-1.5 text-xs font-bold text-white">추가</button>
+            <button onClick={() => setAddOpen(false)} className="text-xs text-slate-400 underline">취소</button>
+          </div>
+        </div>
+      )}
+
+      {Object.keys(grouped).sort().map((day) => (
+        <div key={day} className="mb-4">
+          <div className="mb-2 text-xs font-bold text-slate-500">{day}요일</div>
+          <div className="space-y-1.5">
+            {grouped[day].sort((a, b) => a.time.localeCompare(b.time)).map((row) =>
+              editId === row.id ? (
+                <div key={row.id} className="grid grid-cols-3 gap-1.5 rounded-lg bg-slate-50 p-2 ring-1 ring-[#173F4F]">
+                  {[
+                    { key: "start", ph: "시작", w: 1 },
+                    { key: "end", ph: "종료", w: 1 },
+                    { key: "day", ph: "요일", w: 1 },
+                    { key: "title", ph: "강의명", w: 2 },
+                    { key: "room", ph: "강의실", w: 1 },
+                  ].map((f) => (
+                    <input key={f.key} value={form[f.key]} onChange={(e) => setForm((s) => ({ ...s, [f.key]: e.target.value }))} placeholder={f.ph} className={cx("rounded border border-slate-200 bg-white px-2 py-1 text-xs", f.w === 2 && "col-span-2")} />
+                  ))}
+                  <div className="col-span-3 flex gap-1.5">
+                    <button onClick={saveEdit} className="rounded-lg bg-[#173F4F] px-3 py-1 text-[11px] font-bold text-white">저장</button>
+                    <button onClick={() => setEditId(null)} className="text-[11px] text-slate-400 underline">취소</button>
+                  </div>
+                </div>
+              ) : (
+                <div key={row.id} className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 ring-1 ring-slate-100">
+                  <span className="w-24 shrink-0 font-mono text-[11px] text-slate-400">{row.time}</span>
+                  <span className="flex-1 truncate text-sm text-slate-700">{row.title}</span>
+                  <span className="shrink-0 font-mono text-[11px] font-bold text-[#173F4F]">{row.room}</span>
+                  <button onClick={() => startEdit(row)} className="shrink-0 text-[11px] text-slate-400 hover:text-slate-600">수정</button>
+                  <button onClick={() => deleteRow(row.id)} className="shrink-0 text-[11px] text-rose-400 hover:text-rose-600">삭제</button>
+                </div>
+              )
+            )}
+          </div>
+        </div>
+      ))}
+      {scheduleRows.length === 0 && <div className="py-10 text-center text-sm text-slate-400">등록된 시간표가 없습니다.<br />엑셀 붙여넣기 또는 직접 추가로 등록하세요.</div>}
+    </Card>
+  );
+}
+
+function OperationPrepPage({ scheduleRows, setScheduleRows, setNotices }) {
   const [subTab, setSubTab] = useState("schedule");
   return (
     <>
-      <PageTitle title="운영준비" sub="시간표 병합과 PDF 합본을 한 곳에서 처리합니다" />
+      <PageTitle title="운영준비" sub="시간표 편집·병합과 PDF 합본을 한 곳에서 처리합니다" />
       <div className="mb-4 flex w-fit rounded-full bg-slate-100 p-0.5">
-        {[["schedule", "시간표 변환기"], ["pdf", "PDF 합본"]].map(([key, label]) => (
+        {[["edit", "시간표 편집"], ["schedule", "시간표 변환기"], ["pdf", "PDF 합본"]].map(([key, label]) => (
           <button key={key} onClick={() => setSubTab(key)} className={cx("rounded-full px-4 py-1.5 text-xs font-bold", subTab === key ? "bg-[#173F4F] text-white" : "text-slate-500")}>
             {label}
           </button>
         ))}
       </div>
-      {subTab === "schedule" ? <ScheduleConverter /> : <PdfMergeTool />}
+      {subTab === "edit" && <ScheduleEditor scheduleRows={scheduleRows} setScheduleRows={setScheduleRows} setNotices={setNotices} />}
+      {subTab === "schedule" && <ScheduleConverter />}
+      {subTab === "pdf" && <PdfMergeTool />}
     </>
   );
 }
@@ -851,7 +1150,7 @@ function StudentMobile({ notices, setNotices, scheduleRows, mealMenu, busRows })
 function AppContent(props) {
   const { userId, page } = props;
   if (userId === "admin") return page === "access" ? <AccessPage /> : <AdminDashboard {...props} />;
-  if (userId === "course") return page === "notice" ? <NoticePage {...props} /> : page === "prep" ? <OperationPrepPage /> : <BusPage {...props} />;
+  if (userId === "course") return page === "notice" ? <NoticePage {...props} /> : page === "prep" ? <OperationPrepPage {...props} /> : <BusPage {...props} />;
   if (userId === "room") return <RoomPage {...props} />;
   if (userId === "meal") return <MealPage {...props} />;
   if (userId === "facility") return <FacilityPage {...props} />;
