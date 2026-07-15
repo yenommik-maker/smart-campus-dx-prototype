@@ -123,14 +123,41 @@ const initialFacilityRows = [
 
 const ALL_FACILITY_FIELDS = ["통신", "설비", "기계", "소방"];
 
-const ALL_SCREENS = ["대시보드", "권한관리", "버스관리", "공지/안내", "운영준비", "객실관리", "식당관리", "시설처리", "탑승확인", "나의 포털"];
+const SCREEN_DEFS = {
+  "대시보드": ["dashboard", Home],
+  "권한관리": ["access", ShieldCheck],
+  "버스관리": ["bus", Bus],
+  "공지/안내": ["notice", FileText],
+  "운영준비": ["prep", Settings2],
+  "객실관리": ["room", BedDouble],
+  "식당관리": ["meal", Utensils],
+  "시설처리": ["facility", Wrench],
+  "탑승확인": ["boarding", QrCode],
+  "나의 포털": ["mobile", Smartphone],
+};
+
+const ALL_SCREENS = Object.keys(SCREEN_DEFS);
+
+const PAGE_TO_SCREEN = Object.fromEntries(Object.entries(SCREEN_DEFS).map(([screen, [pageId]]) => [pageId, screen]));
+
+function getAllowedScreens(userId, accessRows) {
+  if (userId === "admin") return ["대시보드", "권한관리"];
+  if (userId === "student") return ["나의 포털"];
+  return accessRows.find((r) => r.userKey === userId)?.screens || [];
+}
+
+function firstPageFor(userId, accessRows) {
+  const screens = getAllowedScreens(userId, accessRows);
+  const first = screens[0];
+  return first ? SCREEN_DEFS[first][0] : null;
+}
 
 const initialAccessRows = [
-  { id: 1, user: "과정담당자", userKey: "course", menu: "버스관리, 공지/안내, 운영준비", screens: ["버스관리", "공지/안내", "운영준비"], perms: "노선확정·공지작성·시간표업로드·시간표합반" },
-  { id: 2, user: "객실담당자", userKey: "room", menu: "객실관리", screens: ["객실관리"], perms: "신청기간·자동배정·수동조정" },
-  { id: 3, user: "식당담당자", userKey: "meal", menu: "식당관리", screens: ["식당관리"], perms: "식단표업로드·식수확인" },
-  { id: 4, user: "시설담당자", userKey: "facility", menu: "시설처리", screens: ["시설처리"], facilityFields: ["통신"], perms: "접수·처리중·완료 변경" },
-  { id: 5, user: "버스 인솔자", userKey: "escort", menu: "탑승확인", screens: ["탑승확인"], perms: "QR·수동체크" },
+  { id: 1, user: "과정담당자", userKey: "course", screens: ["버스관리", "공지/안내", "운영준비"], perms: "노선확정·공지작성·시간표업로드·시간표합반" },
+  { id: 2, user: "객실담당자", userKey: "room", screens: ["객실관리"], perms: "신청기간·자동배정·수동조정" },
+  { id: 3, user: "식당담당자", userKey: "meal", screens: ["식당관리"], perms: "식단표업로드·식수확인" },
+  { id: 4, user: "시설담당자", userKey: "facility", screens: ["시설처리"], facilityFields: ["통신"], perms: "접수·처리중·완료 변경" },
+  { id: 5, user: "버스 인솔자", userKey: "escort", screens: ["탑승확인"], perms: "QR·수동체크" },
 ];
 
 const weeklyFacilityTrend = [
@@ -202,7 +229,8 @@ function ProgressRow({ label, value, color = "bg-[#173F4F]" }) {
   );
 }
 
-function TopBar({ userId, setUserId, unread, onBell, onMenuClick }) {
+function TopBar({ userId, unread, onBell, onMenuClick, onLogout }) {
+  const user = demoUsers.find((u) => u.id === userId);
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white">
       <div className="flex h-16 items-center justify-between px-4 lg:px-6">
@@ -219,26 +247,63 @@ function TopBar({ userId, setUserId, unread, onBell, onMenuClick }) {
             <Bell size={19} />
             {unread > 0 && <span className="absolute -right-1 -top-1 rounded-full bg-rose-500 px-1.5 text-[10px] font-black text-white">{unread}</span>}
           </button>
-          <select value={userId} onChange={(e) => setUserId(e.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold outline-none">
-            {demoUsers.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-          </select>
+          <div className="hidden text-right sm:block">
+            <div className="text-sm font-bold text-slate-900">{user.name}</div>
+            <div className="text-xs text-slate-500">{user.role}</div>
+          </div>
+          <button onClick={onLogout} className="rounded-xl p-2 text-slate-500 hover:bg-slate-100" title="로그아웃"><LogOut size={19} /></button>
         </div>
       </div>
     </header>
   );
 }
 
-function Sidebar({ userId, page, setPage, mobileOpen, onClose }) {
-  const menusByUser = {
-    admin: [["dashboard", "대시보드", Home], ["access", "권한관리", ShieldCheck]],
-    course: [["bus", "버스관리", Bus], ["notice", "공지/안내", FileText], ["prep", "운영준비", Settings2]],
-    room: [["room", "객실관리", BedDouble]],
-    meal: [["meal", "식당관리", Utensils]],
-    facility: [["facility", "시설처리", Wrench]],
-    escort: [["boarding", "탑승확인", QrCode]],
-    student: [["mobile", "나의 포털", Smartphone]],
-  };
-  const menus = menusByUser[userId] || [];
+function LoginScreen({ onLogin }) {
+  const [selected, setSelected] = useState(demoUsers[0].id);
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
+      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#173F4F] text-white"><Home size={20} /></div>
+          <div className="font-black text-slate-900">Smart Campus DX</div>
+        </div>
+        <p className="mb-4 text-sm text-slate-500">로그인할 계정을 선택하세요. 접근 가능한 화면은 관리자가 부여한 권한 범위에 따라 결정됩니다.</p>
+        <div className="mb-4 space-y-2">
+          {demoUsers.map((u) => (
+            <button
+              key={u.id}
+              onClick={() => setSelected(u.id)}
+              className={cx(
+                "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm ring-1",
+                selected === u.id ? "bg-[#173F4F] text-white ring-[#173F4F]" : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50"
+              )}
+            >
+              <span className="font-bold">{u.name}</span>
+              <span className={cx("text-xs", selected === u.id ? "text-white/70" : "text-slate-400")}>{u.role}</span>
+            </button>
+          ))}
+        </div>
+        <button onClick={() => onLogin(selected)} className="w-full rounded-xl bg-[#173F4F] py-2.5 text-sm font-bold text-white">로그인</button>
+      </div>
+    </div>
+  );
+}
+
+function NoAccessPage({ screen, message }) {
+  return (
+    <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+      <div className="rounded-2xl bg-slate-100 p-4 text-slate-400"><ShieldCheck size={28} /></div>
+      <div className="mt-3 font-black text-slate-900">{message || `${screen} 화면 접근 권한이 없습니다`}</div>
+      <div className="mt-1 text-sm text-slate-500">관리자에게 사용자/권한 관리에서 권한 부여를 요청하세요.</div>
+    </div>
+  );
+}
+
+function Sidebar({ userId, allowedScreens, page, setPage, mobileOpen, onClose, onLogout }) {
+  const menus = allowedScreens.map((screen) => {
+    const [id, Icon] = SCREEN_DEFS[screen];
+    return [id, screen, Icon];
+  });
   const user = demoUsers.find((u) => u.id === userId);
   const navContent = (
     <>
@@ -257,7 +322,7 @@ function Sidebar({ userId, page, setPage, mobileOpen, onClose }) {
           </button>
         ))}
       </nav>
-      <button className="absolute bottom-4 flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-slate-500"><LogOut size={17} />로그아웃</button>
+      <button onClick={onLogout} className="absolute bottom-4 flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100"><LogOut size={17} />로그아웃</button>
     </>
   );
   return (
@@ -489,7 +554,7 @@ function AccessPage({ accessRows, setAccessRows }) {
   const [notice, setNotice] = useState("");
   const [editId, setEditId] = useState(null);
   const [addOpen, setAddOpen] = useState(false);
-  const emptyForm = { user: "", menu: "", screens: [], perms: "", userKey: undefined, facilityFields: [] };
+  const emptyForm = { user: "", screens: [], perms: "", userKey: undefined, facilityFields: [] };
   const [form, setForm] = useState(emptyForm);
 
   const toggleScreen = (screen) => {
@@ -502,7 +567,7 @@ function AccessPage({ accessRows, setAccessRows }) {
 
   const startEdit = (r) => {
     setEditId(r.id);
-    setForm({ user: r.user, menu: r.menu, screens: r.screens, perms: r.perms, userKey: r.userKey, facilityFields: r.facilityFields || [] });
+    setForm({ user: r.user, screens: r.screens, perms: r.perms, userKey: r.userKey, facilityFields: r.facilityFields || [] });
     setAddOpen(false);
     setNotice("");
   };
@@ -529,7 +594,7 @@ function AccessPage({ accessRows, setAccessRows }) {
     <>
       <PageTitle
         title="사용자/권한 관리"
-        sub="담당자별 메뉴, 화면별 권한, 처리권한 설정"
+        sub="담당자별 화면 접근 권한, 처리권한 설정"
         action={
           <button
             onClick={() => { setAddOpen((v) => !v); setEditId(null); setForm(emptyForm); setNotice(""); }}
@@ -544,8 +609,7 @@ function AccessPage({ accessRows, setAccessRows }) {
         <Card className="mb-4">
           <h2 className="mb-3 font-black">{editId !== null ? "권한 수정" : "신규 사용자 추가"}</h2>
           <div className="grid gap-2 sm:grid-cols-2">
-            <input value={form.user} onChange={(e) => setForm((s) => ({ ...s, user: e.target.value }))} placeholder="사용자 (예: 홍보담당자)" className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#173F4F]" />
-            <input value={form.menu} onChange={(e) => setForm((s) => ({ ...s, menu: e.target.value }))} placeholder="메뉴" className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#173F4F]" />
+            <input value={form.user} onChange={(e) => setForm((s) => ({ ...s, user: e.target.value }))} placeholder="사용자 (예: 홍보담당자)" className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#173F4F] sm:col-span-2" />
             <input value={form.perms} onChange={(e) => setForm((s) => ({ ...s, perms: e.target.value }))} placeholder="처리권한" className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#173F4F] sm:col-span-2" />
           </div>
           <div className="mt-3">
@@ -605,13 +669,12 @@ function AccessPage({ accessRows, setAccessRows }) {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-left text-sm">
             <thead className="bg-slate-50 text-xs text-slate-500">
-              <tr><th className="p-3">사용자</th><th className="p-3">메뉴</th><th className="p-3">담당 화면</th><th className="p-3">처리권한</th><th className="p-3" /></tr>
+              <tr><th className="p-3">사용자</th><th className="p-3">담당 화면</th><th className="p-3">처리권한</th><th className="p-3" /></tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {rows.map((r) => (
                 <tr key={r.id} className={cx(editId === r.id && "bg-slate-50")}>
                   <td className="p-3 font-bold">{r.user}</td>
-                  <td className="p-3">{r.menu}</td>
                   <td className="p-3">
                     <div className="flex flex-wrap gap-1">
                       {r.screens.map((s) => <Badge key={s} color="blue">{s}</Badge>)}
@@ -1418,8 +1481,14 @@ function StudentMobile({ notices, setNotices, scheduleRows, mealMenu, busRows })
 }
 
 function AppContent(props) {
-  const { userId, page, accessRows, setAccessRows } = props;
+  const { userId, page, accessRows, setAccessRows, allowedScreens } = props;
   if (userId === "admin") return page === "access" ? <AccessPage accessRows={accessRows} setAccessRows={setAccessRows} /> : <AdminDashboard {...props} />;
+  if (userId === "student") return <StudentMobile {...props} />;
+
+  if (allowedScreens.length === 0) return <NoAccessPage message="이 계정에 부여된 화면이 없습니다" />;
+  const requiredScreen = PAGE_TO_SCREEN[page];
+  if (requiredScreen && !allowedScreens.includes(requiredScreen)) return <NoAccessPage screen={requiredScreen} />;
+
   if (userId === "course") return page === "notice" ? <NoticePage {...props} /> : page === "prep" ? <OperationPrepPage {...props} /> : <BusPage {...props} />;
   if (userId === "room") return <RoomPage {...props} />;
   if (userId === "meal") return <MealPage {...props} />;
@@ -1427,12 +1496,11 @@ function AppContent(props) {
     const assignedFields = accessRows.find((r) => r.userKey === "facility")?.facilityFields || [];
     return <FacilityPage {...props} assignedFields={assignedFields} />;
   }
-  if (userId === "escort") return <BoardingPage {...props} />;
-  return <StudentMobile {...props} />;
+  return <BoardingPage {...props} />;
 }
 
 export default function SmartCampusPrototype() {
-  const [userId, setUserId] = useState("admin");
+  const [session, setSession] = useState(null);
   const [notices, setNotices] = useState(noticesSeed);
   const [noticeOpen, setNoticeOpen] = useState(false);
   const [busRows, setBusRows] = useState(initialBusRows);
@@ -1442,10 +1510,24 @@ export default function SmartCampusPrototype() {
   const [facilityRows, setFacilityRows] = useState(initialFacilityRows);
   const [accessRows, setAccessRows] = useState(initialAccessRows);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const defaultPage = { admin: "dashboard", course: "bus", room: "room", meal: "meal", facility: "facility", escort: "boarding", student: "mobile" };
-  const [page, setPage] = useState(defaultPage[userId]);
-  function changeUser(id) { setUserId(id); setPage(defaultPage[id]); setMobileNavOpen(false); }
+  const [page, setPage] = useState(null);
+
+  function handleLogin(id) {
+    setSession(id);
+    setPage(firstPageFor(id, accessRows));
+    setMobileNavOpen(false);
+  }
+  function handleLogout() {
+    setSession(null);
+    setPage(null);
+    setMobileNavOpen(false);
+  }
+
+  if (!session) return <LoginScreen onLogin={handleLogin} />;
+
+  const userId = session;
+  const allowedScreens = getAllowedScreens(userId, accessRows);
   const unread = notices.filter((n) => n.unread).length;
-  const props = { userId, page, setPage, busRows, setBusRows, roomOpen, setRoomOpen, notices, setNotices, scheduleRows, setScheduleRows, mealMenu, setMealMenu, facilityRows, setFacilityRows, accessRows, setAccessRows };
-  return <div className="min-h-screen bg-slate-100 text-slate-900"><TopBar userId={userId} setUserId={changeUser} unread={unread} onBell={() => setNoticeOpen(!noticeOpen)} onMenuClick={() => setMobileNavOpen(true)} /><NotificationPanel open={noticeOpen} notices={notices} onClose={() => setNoticeOpen(false)} onReadAll={() => setNotices(notices.map((n) => ({ ...n, unread: false })))} /><div className="flex min-h-[calc(100vh-4rem)]"><Sidebar userId={userId} page={page} setPage={setPage} mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} /><main className={cx("min-w-0 flex-1", userId === "student" ? "p-0 sm:p-4 lg:p-6" : "p-4 lg:p-6")}><AppContent {...props} /></main></div></div>;
+  const props = { userId, page, setPage, busRows, setBusRows, roomOpen, setRoomOpen, notices, setNotices, scheduleRows, setScheduleRows, mealMenu, setMealMenu, facilityRows, setFacilityRows, accessRows, setAccessRows, allowedScreens };
+  return <div className="min-h-screen bg-slate-100 text-slate-900"><TopBar userId={userId} unread={unread} onBell={() => setNoticeOpen(!noticeOpen)} onMenuClick={() => setMobileNavOpen(true)} onLogout={handleLogout} /><NotificationPanel open={noticeOpen} notices={notices} onClose={() => setNoticeOpen(false)} onReadAll={() => setNotices(notices.map((n) => ({ ...n, unread: false })))} /><div className="flex min-h-[calc(100vh-4rem)]"><Sidebar userId={userId} allowedScreens={allowedScreens} page={page} setPage={setPage} mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} onLogout={handleLogout} /><main className={cx("min-w-0 flex-1", userId === "student" ? "p-0 sm:p-4 lg:p-6" : "p-4 lg:p-6")}><AppContent {...props} /></main></div></div>;
 }
