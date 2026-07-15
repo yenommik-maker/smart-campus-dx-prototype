@@ -1081,23 +1081,23 @@ function StudentMobile({ notices, setNotices, scheduleRows, mealMenu, busRows })
   };
 
   return (
-    <div className="mx-auto max-w-md">
-      <div className="overflow-hidden rounded-[2rem] bg-white shadow-sm ring-1 ring-slate-200">
-        <div className="bg-[#173F4F] p-5 text-white">
+    <div className="mx-auto w-full max-w-md sm:py-6">
+      <div className="flex h-[calc(100dvh-4rem)] flex-col bg-white sm:h-[42rem] sm:overflow-hidden sm:rounded-[2rem] sm:shadow-sm sm:ring-1 sm:ring-slate-200">
+        <div className="shrink-0 bg-[#173F4F] p-5 text-white">
           <div className="text-sm text-teal-100">신임자 과정 3기</div>
           <div className="mt-1 text-2xl font-black">교육생01</div>
         </div>
         {bannerNotice && (
           <button
             onClick={() => { setTab("notice"); openNotice(bannerNotice); }}
-            className={cx("flex w-full items-center gap-2 px-5 py-3 text-left text-sm font-bold", bannerNotice.urgent ? "bg-rose-600 text-white" : "bg-sky-50 text-sky-700")}
+            className={cx("flex shrink-0 w-full items-center gap-2 px-5 py-3 text-left text-sm font-bold", bannerNotice.urgent ? "bg-rose-600 text-white" : "bg-sky-50 text-sky-700")}
           >
             <Bell size={16} />
             <span className="flex-1 truncate">{bannerNotice.urgent ? "[긴급] " : ""}{bannerNotice.title}</span>
             <span className="text-xs font-normal opacity-80">자세히</span>
           </button>
         )}
-        <div className="p-5">
+        <div className="min-h-0 flex-1 overflow-y-auto p-5">
           {tab === "home" && <div className="grid gap-3"><KPI title="내 객실" value={submitted ? "신청완료" : "201호"} sub={submitted ? "객실담당자 검토 대기" : "배정 완료"} icon={BedDouble} /><KPI title="강의실" value={scheduleRows[0]?.room || "A-201"} sub={scheduleRows[0]?.title || course.classroom} icon={ClipboardCheck} /><KPI title="입소 버스" value={busSubmitted ? arrival : "수요조사"} sub={confirmedBus ? `${confirmedBus.day} ${confirmedBus.time} 확정` : busSubmitted ? "시간 확정 대기" : "신청 필요"} icon={Bus} /></div>}
           {tab === "schedule" && <div><h2 className="mb-3 font-black">시간표/강의실</h2>{scheduleRows.map((s) => <div key={`${s.day}-${s.time}-${s.title}`} className="mb-2 rounded-xl bg-slate-50 p-3"><b>{s.title}</b><div className="text-xs text-slate-500">{s.day} · {s.time} · {s.room}</div></div>)}</div>}
           {tab === "meal" && <div><h2 className="mb-3 font-black">오늘 식단</h2>{Object.entries({ 조식: mealMenu.breakfast, 중식: mealMenu.lunch, 석식: mealMenu.dinner }).map(([k,v]) => <div key={k} className="mb-2 rounded-xl bg-slate-50 p-3"><b>{k}</b><p className="text-sm text-slate-600">{v}</p></div>)}</div>}
@@ -1131,7 +1131,7 @@ function StudentMobile({ notices, setNotices, scheduleRows, mealMenu, busRows })
           )}
           {tab === "qr" && <div className="text-center"><div className="mx-auto grid h-44 w-44 grid-cols-5 gap-1 rounded-2xl bg-slate-900 p-3">{Array.from({ length: 25 }).map((_, i) => <div key={i} className={cx("rounded-sm", [0, 2, 6, 8, 12, 16, 18, 20, 22, 24].includes(i) ? "bg-white" : "bg-slate-900")} />)}</div><div className="mt-4 font-black">모바일 학생증 QR</div><div className="text-sm text-slate-500">버스·출석·식사 확인 공통 사용</div></div>}
         </div>
-        <div className="grid grid-cols-7 border-t border-slate-100">
+        <div className="grid shrink-0 grid-cols-7 border-t border-slate-100 bg-white pb-[env(safe-area-inset-bottom)]">
           {[["home", "홈"], ["schedule", "시간표"], ["meal", "식단"], ["bus", "버스"], ["room", "객실"], ["notice", "공지"], ["qr", "QR"]].map(([id, label]) => (
             <button key={id} onClick={() => setTab(id)} className={cx("relative flex items-center justify-center gap-1 py-4 text-xs font-bold", tab === id ? "text-[#173F4F]" : "text-slate-400")}>
               {id === "notice" && <Bell size={14} />}
@@ -1172,5 +1172,5 @@ export default function SmartCampusPrototype() {
   function changeUser(id) { setUserId(id); setPage(defaultPage[id]); }
   const unread = notices.filter((n) => n.unread).length;
   const props = { userId, page, setPage, busRows, setBusRows, roomOpen, setRoomOpen, notices, setNotices, scheduleRows, setScheduleRows, mealMenu, setMealMenu, facilityRows, setFacilityRows };
-  return <div className="min-h-screen bg-slate-100 text-slate-900"><TopBar userId={userId} setUserId={changeUser} unread={unread} onBell={() => setNoticeOpen(!noticeOpen)} /><NotificationPanel open={noticeOpen} notices={notices} onClose={() => setNoticeOpen(false)} onReadAll={() => setNotices(notices.map((n) => ({ ...n, unread: false })))} /><div className="flex min-h-[calc(100vh-4rem)]"><Sidebar userId={userId} page={page} setPage={setPage} /><main className="flex-1 p-4 lg:p-6"><AppContent {...props} /></main></div></div>;
+  return <div className="min-h-screen bg-slate-100 text-slate-900"><TopBar userId={userId} setUserId={changeUser} unread={unread} onBell={() => setNoticeOpen(!noticeOpen)} /><NotificationPanel open={noticeOpen} notices={notices} onClose={() => setNoticeOpen(false)} onReadAll={() => setNotices(notices.map((n) => ({ ...n, unread: false })))} /><div className="flex min-h-[calc(100vh-4rem)]"><Sidebar userId={userId} page={page} setPage={setPage} /><main className={cx("flex-1", userId === "student" ? "p-0 sm:p-4 lg:p-6" : "p-4 lg:p-6")}><AppContent {...props} /></main></div></div>;
 }
