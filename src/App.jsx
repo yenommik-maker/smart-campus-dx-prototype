@@ -115,6 +115,14 @@ const initialFacilityRows = [
   { id: 3, field: "통신", title: "인터넷 접속 지연", place: "생활관 215호", status: "완료", time: "11:40" },
 ];
 
+const initialAccessRows = [
+  { id: 1, user: "과정담당자", menu: "버스관리, 공지/안내, 운영준비", scope: "담당 과정", perms: "노선확정·공지작성·시간표업로드·시간표합반" },
+  { id: 2, user: "객실담당자", menu: "객실관리", scope: "전체 객실", perms: "신청기간·자동배정·수동조정" },
+  { id: 3, user: "식당담당자", menu: "식당관리", scope: "식당 운영", perms: "식단표업로드·식수확인" },
+  { id: 4, user: "시설담당자", menu: "시설처리", scope: "담당 분야 신고", perms: "접수·처리중·완료 변경" },
+  { id: 5, user: "버스 인솔자", menu: "탑승확인", scope: "배정 차량", perms: "QR·수동체크" },
+];
+
 const weeklyFacilityTrend = [
   { day: "월", count: 5 }, { day: "화", count: 8 }, { day: "수", count: 6 },
   { day: "목", count: 9 }, { day: "금", count: 4 }, { day: "토", count: 2 }, { day: "일", count: 1 },
@@ -466,9 +474,100 @@ function AdminDashboard({ busRows, roomOpen, notices, scheduleRows, mealMenu, fa
 }
 
 function AccessPage() {
+  const [rows, setRows] = useState(initialAccessRows);
   const [notice, setNotice] = useState("");
-  const rows = [["과정담당자", "버스관리, 공지/안내, 운영준비", "담당 과정", "노선확정·공지작성·시간표업로드·시간표합반"], ["객실담당자", "객실관리", "전체 객실", "신청기간·자동배정·수동조정"], ["식당담당자", "식당관리", "식당 운영", "식단표업로드·식수확인"], ["시설담당자", "시설처리", "담당 분야 신고", "접수·처리중·완료 변경"], ["버스 인솔자", "탑승확인", "배정 차량", "QR·수동체크"]];
-  return <><PageTitle title="사용자/권한 관리" sub="담당자별 메뉴, 데이터 범위, 처리권한 설정" action={<button onClick={() => setNotice("신규 사용자 등록 화면이 열렸습니다.")} className="rounded-xl bg-[#173F4F] px-4 py-2 text-sm font-bold text-white">사용자 추가</button>} />{notice && <div className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700 ring-1 ring-emerald-200">{notice}</div>}<Card><div className="overflow-x-auto"><table className="w-full min-w-[560px] text-left text-sm"><thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="p-3">사용자</th><th className="p-3">메뉴</th><th className="p-3">데이터 범위</th><th className="p-3">처리권한</th><th className="p-3" /></tr></thead><tbody className="divide-y divide-slate-100">{rows.map((r) => <tr key={r[0]}><td className="p-3 font-bold">{r[0]}</td><td className="p-3">{r[1]}</td><td className="p-3">{r[2]}</td><td className="p-3">{r[3]}</td><td className="p-3 text-right"><button onClick={() => setNotice(`${r[0]} 권한 수정 패널을 열었습니다.`)} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold">수정</button></td></tr>)}</tbody></table></div></Card></>;
+  const [editId, setEditId] = useState(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [form, setForm] = useState({ user: "", menu: "", scope: "", perms: "" });
+  const emptyForm = { user: "", menu: "", scope: "", perms: "" };
+
+  const startEdit = (r) => {
+    setEditId(r.id);
+    setForm({ user: r.user, menu: r.menu, scope: r.scope, perms: r.perms });
+    setAddOpen(false);
+    setNotice("");
+  };
+
+  const saveEdit = () => {
+    if (!form.user.trim()) return;
+    setRows(rows.map((r) => (r.id === editId ? { ...r, ...form } : r)));
+    setNotice(`${form.user} 권한이 수정되었습니다.`);
+    setEditId(null);
+  };
+
+  const addUser = () => {
+    if (!form.user.trim()) return;
+    setRows([...rows, { id: Date.now(), ...form }]);
+    setNotice(`${form.user} 사용자가 추가되었습니다.`);
+    setForm(emptyForm);
+    setAddOpen(false);
+  };
+
+  return (
+    <>
+      <PageTitle
+        title="사용자/권한 관리"
+        sub="담당자별 메뉴, 데이터 범위, 처리권한 설정"
+        action={
+          <button
+            onClick={() => { setAddOpen((v) => !v); setEditId(null); setForm(emptyForm); setNotice(""); }}
+            className="rounded-xl bg-[#173F4F] px-4 py-2 text-sm font-bold text-white"
+          >
+            사용자 추가
+          </button>
+        }
+      />
+      {notice && <div className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700 ring-1 ring-emerald-200">{notice}</div>}
+      {addOpen && (
+        <Card className="mb-4">
+          <h2 className="mb-3 font-black">신규 사용자 추가</h2>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <input value={form.user} onChange={(e) => setForm((s) => ({ ...s, user: e.target.value }))} placeholder="사용자 (예: 홍보담당자)" className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#173F4F]" />
+            <input value={form.menu} onChange={(e) => setForm((s) => ({ ...s, menu: e.target.value }))} placeholder="메뉴" className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#173F4F]" />
+            <input value={form.scope} onChange={(e) => setForm((s) => ({ ...s, scope: e.target.value }))} placeholder="데이터 범위" className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#173F4F]" />
+            <input value={form.perms} onChange={(e) => setForm((s) => ({ ...s, perms: e.target.value }))} placeholder="처리권한" className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#173F4F]" />
+          </div>
+          <div className="mt-3 flex gap-2">
+            <button onClick={addUser} className="rounded-lg bg-[#173F4F] px-4 py-1.5 text-xs font-bold text-white">추가</button>
+            <button onClick={() => setAddOpen(false)} className="text-xs text-slate-400 underline">취소</button>
+          </div>
+        </Card>
+      )}
+      <Card>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] text-left text-sm">
+            <thead className="bg-slate-50 text-xs text-slate-500">
+              <tr><th className="p-3">사용자</th><th className="p-3">메뉴</th><th className="p-3">데이터 범위</th><th className="p-3">처리권한</th><th className="p-3" /></tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {rows.map((r) =>
+                editId === r.id ? (
+                  <tr key={r.id} className="bg-slate-50">
+                    <td className="p-3"><input value={form.user} onChange={(e) => setForm((s) => ({ ...s, user: e.target.value }))} className="w-full rounded-lg border border-slate-200 px-2 py-1 text-sm" /></td>
+                    <td className="p-3"><input value={form.menu} onChange={(e) => setForm((s) => ({ ...s, menu: e.target.value }))} className="w-full rounded-lg border border-slate-200 px-2 py-1 text-sm" /></td>
+                    <td className="p-3"><input value={form.scope} onChange={(e) => setForm((s) => ({ ...s, scope: e.target.value }))} className="w-full rounded-lg border border-slate-200 px-2 py-1 text-sm" /></td>
+                    <td className="p-3"><input value={form.perms} onChange={(e) => setForm((s) => ({ ...s, perms: e.target.value }))} className="w-full rounded-lg border border-slate-200 px-2 py-1 text-sm" /></td>
+                    <td className="whitespace-nowrap p-3 text-right">
+                      <button onClick={saveEdit} className="rounded-lg bg-[#173F4F] px-3 py-1.5 text-xs font-bold text-white">저장</button>
+                      <button onClick={() => setEditId(null)} className="ml-2 text-xs text-slate-400 underline">취소</button>
+                    </td>
+                  </tr>
+                ) : (
+                  <tr key={r.id}>
+                    <td className="p-3 font-bold">{r.user}</td>
+                    <td className="p-3">{r.menu}</td>
+                    <td className="p-3">{r.scope}</td>
+                    <td className="p-3">{r.perms}</td>
+                    <td className="p-3 text-right"><button onClick={() => startEdit(r)} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold">수정</button></td>
+                  </tr>
+                )
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </>
+  );
 }
 
 function BusPage({ busRows, setBusRows, setNotices }) {
