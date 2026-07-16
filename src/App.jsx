@@ -308,6 +308,20 @@ function LoginScreen({ credentials, onAuthenticated }) {
             {demoUsers.map((u) => <span key={u.id} className="rounded-full bg-white px-2 py-1 ring-1 ring-slate-200">{u.empId} · {u.name}</span>)}
           </div>
         </div>
+        <div className="mt-4 border-t border-dashed border-slate-200 pt-4">
+          <div className="mb-2 text-xs font-bold text-amber-600">배포 전 테스트용 — 비밀번호 없이 바로 입장</div>
+          <div className="grid grid-cols-2 gap-1.5">
+            {demoUsers.map((u) => (
+              <button
+                key={u.id}
+                onClick={() => onAuthenticated(u, false)}
+                className="rounded-lg bg-amber-50 px-2 py-2 text-xs font-bold text-amber-700 ring-1 ring-amber-200 hover:bg-amber-100"
+              >
+                {u.name}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
