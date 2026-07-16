@@ -141,7 +141,7 @@ const ALL_SCREENS = Object.keys(SCREEN_DEFS);
 const PAGE_TO_SCREEN = Object.fromEntries(Object.entries(SCREEN_DEFS).map(([screen, [pageId]]) => [pageId, screen]));
 
 function getAllowedScreens(userId, accessRows) {
-  if (userId === "admin") return ["대시보드", "권한관리"];
+  if (userId === "admin") return ALL_SCREENS;
   if (userId === "student") return ["나의 포털"];
   return accessRows.find((r) => r.userKey === userId)?.screens || [];
 }
@@ -1553,21 +1553,27 @@ function StudentMobile({ notices, setNotices, scheduleRows, mealMenu, busRows })
 
 function AppContent(props) {
   const { userId, page, accessRows, setAccessRows, allowedScreens } = props;
-  if (userId === "admin") return page === "access" ? <AccessPage accessRows={accessRows} setAccessRows={setAccessRows} /> : <AdminDashboard {...props} />;
-  if (userId === "student") return <StudentMobile {...props} />;
 
   if (allowedScreens.length === 0) return <NoAccessPage message="이 계정에 부여된 화면이 없습니다" />;
   const requiredScreen = PAGE_TO_SCREEN[page];
   if (requiredScreen && !allowedScreens.includes(requiredScreen)) return <NoAccessPage screen={requiredScreen} />;
 
-  if (userId === "course") return page === "notice" ? <NoticePage {...props} /> : page === "prep" ? <OperationPrepPage {...props} /> : <BusPage {...props} />;
-  if (userId === "room") return <RoomPage {...props} />;
-  if (userId === "meal") return <MealPage {...props} />;
-  if (userId === "facility") {
-    const assignedFields = accessRows.find((r) => r.userKey === "facility")?.facilityFields || [];
-    return <FacilityPage {...props} assignedFields={assignedFields} />;
+  switch (page) {
+    case "dashboard": return <AdminDashboard {...props} />;
+    case "access": return <AccessPage accessRows={accessRows} setAccessRows={setAccessRows} />;
+    case "bus": return <BusPage {...props} />;
+    case "notice": return <NoticePage {...props} />;
+    case "prep": return <OperationPrepPage {...props} />;
+    case "room": return <RoomPage {...props} />;
+    case "meal": return <MealPage {...props} />;
+    case "facility": {
+      const assignedFields = userId === "admin" ? ALL_FACILITY_FIELDS : (accessRows.find((r) => r.userKey === "facility")?.facilityFields || []);
+      return <FacilityPage {...props} assignedFields={assignedFields} />;
+    }
+    case "boarding": return <BoardingPage {...props} />;
+    case "mobile": return <StudentMobile {...props} />;
+    default: return null;
   }
-  return <BoardingPage {...props} />;
 }
 
 export default function SmartCampusPrototype() {
