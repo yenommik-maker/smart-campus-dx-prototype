@@ -1365,12 +1365,110 @@ function NoticePage({ notices, setNotices, scheduleRows, setScheduleRows }) {
   );
 }
 
-function RoomPage({ roomOpen, setRoomOpen }) {
-  const [assigned, setAssigned] = useState(false);
-  const [finalized, setFinalized] = useState(false);
-  const assignedRows = useMemo(() => autoAssignRoom(students), []);
-  const rooms = assignedRows.reduce((a, s) => ((a[s.room] = [...(a[s.room] || []), s]), a), {});
-  return <><PageTitle title="객실관리" sub="4인실 기준 객실 신청 및 자동배정" action={<div className="flex flex-wrap gap-2"><button onClick={() => { setRoomOpen(true); setAssigned(false); setFinalized(false); }} className="rounded-xl bg-white px-4 py-2 text-sm font-bold ring-1 ring-slate-200">신청기간 열기</button><button onClick={() => setRoomOpen(false)} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white">신청기간 종료</button></div>} /><div className="grid gap-4 md:grid-cols-4"><KPI title="신청상태" value={roomOpen ? "진행중" : "종료"} sub="객실담당자 권한" icon={CalendarDays} /><KPI title="신청인원" value="96명" sub="전체 교육생" icon={Users} /><KPI title="예외요청" value="5건" sub="동일객실/건강상" icon={FileText} /><KPI title="배정상태" value={finalized ? "확정" : assigned ? "검토" : "대기"} sub="남녀 분리" icon={BedDouble} /></div><Card className="mt-5"><div className="mb-4 flex items-center justify-between"><h2 className="font-black">자동배정</h2><div className="flex flex-wrap gap-2"><button disabled={roomOpen} onClick={() => setAssigned(true)} className={cx("rounded-xl px-4 py-2 text-sm font-bold text-white", roomOpen ? "bg-slate-300" : "bg-[#173F4F]")}>자동배정 실행</button><button disabled={!assigned} onClick={() => setFinalized(true)} className={cx("rounded-xl px-4 py-2 text-sm font-bold text-white", assigned ? "bg-emerald-600" : "bg-slate-300")}>배정확정</button></div></div>{roomOpen && <div className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-700">신청기간 종료 후 자동배정을 실행할 수 있습니다.</div>}{finalized && <div className="mb-3 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">배정이 확정되어 교육생 포털에 표시됩니다.</div>}<div className="mt-4 grid gap-3 xl:grid-cols-3">{Object.entries(rooms).map(([room, people]) => <div key={room} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200"><div className="mb-3 flex justify-between"><b>{room}</b><Badge color={people[0].gender === "남" ? "blue" : "purple"}>{people[0].gender} {people.length}/4</Badge></div>{people.map((p) => <div key={p.id} className="mb-2 rounded-xl bg-white p-3 text-sm"><b>{p.name}</b><span className="ml-2 text-xs text-slate-500">{p.region} · {p.age}세 · {p.rank}</span>{p.request && <div className="mt-1 text-xs text-amber-700">{p.request}</div>}</div>)}</div>)}</div></Card></>;
+function RoomPage({ roomOpen, setRoomOpen, roomAssignments, setRoomAssignments, roomFinalized, setRoomFinalized, setNotices }) {
+  const assigned = roomAssignments.length > 0;
+  const rooms = roomAssignments.reduce((a, s) => ((a[s.room] = [...(a[s.room] || []), s]), a), {});
+  const roomLabels = Object.keys(rooms).sort();
+  const exceptionRequests = students.filter((s) => s.request);
+
+  const openPeriod = () => {
+    setRoomOpen(true);
+    setRoomAssignments([]);
+    setRoomFinalized(false);
+  };
+
+  const runAutoAssign = () => {
+    setRoomAssignments(autoAssignRoom(students));
+    setRoomFinalized(false);
+  };
+
+  const moveStudent = (studentId, newRoom) => {
+    setRoomAssignments((rows) => rows.map((r) => (r.id === studentId ? { ...r, room: newRoom } : r)));
+  };
+
+  const finalize = () => {
+    setRoomFinalized(true);
+    setNotices((prev) => [{ id: Date.now(), title: "객실 배정이 확정되었습니다.", body: "나의 포털에서 배정된 객실을 확인하세요.", time: "방금", unread: true, urgent: false }, ...prev]);
+  };
+
+  return (
+    <>
+      <PageTitle
+        title="객실관리"
+        sub="4인실 기준 객실 신청·자동배정·수동조정"
+        action={
+          <div className="flex flex-wrap gap-2">
+            <button onClick={openPeriod} className="rounded-xl bg-white px-4 py-2 text-sm font-bold ring-1 ring-slate-200">신청기간 열기</button>
+            <button onClick={() => setRoomOpen(false)} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white">신청기간 종료</button>
+          </div>
+        }
+      />
+      <div className="grid gap-4 md:grid-cols-4">
+        <KPI title="신청상태" value={roomOpen ? "진행중" : "종료"} sub="객실담당자 권한" icon={CalendarDays} />
+        <KPI title="신청인원" value={`${students.length}명`} sub="전체 교육생" icon={Users} />
+        <KPI title="예외요청" value={`${exceptionRequests.length}건`} sub="동일객실/건강상" icon={FileText} />
+        <KPI title="배정상태" value={roomFinalized ? "확정" : assigned ? "검토" : "대기"} sub="남녀 분리" icon={BedDouble} />
+      </div>
+
+      {exceptionRequests.length > 0 && (
+        <Card className="mt-5">
+          <h2 className="mb-3 font-black">예외요청 내역</h2>
+          <div className="space-y-2">
+            {exceptionRequests.map((s) => (
+              <div key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-amber-50 p-3 text-sm ring-1 ring-amber-100">
+                <span><b>{s.name}</b><span className="ml-2 text-xs text-slate-500">{s.region} · {s.rank}</span></span>
+                <span className="font-bold text-amber-700">{s.request}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      <Card className="mt-5">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="font-black">자동배정 · 수동조정</h2>
+          <div className="flex flex-wrap gap-2">
+            <button disabled={roomOpen} onClick={runAutoAssign} className={cx("rounded-xl px-4 py-2 text-sm font-bold text-white", roomOpen ? "bg-slate-300" : "bg-[#173F4F]")}>자동배정 실행</button>
+            <button disabled={!assigned} onClick={finalize} className={cx("rounded-xl px-4 py-2 text-sm font-bold text-white", assigned ? "bg-emerald-600" : "bg-slate-300")}>배정확정</button>
+          </div>
+        </div>
+        {roomOpen && <div className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-700">신청기간 종료 후 자동배정을 실행할 수 있습니다.</div>}
+        {roomFinalized && <div className="mb-3 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">배정이 확정되어 교육생 포털에 표시됩니다.</div>}
+        {assigned && (
+          <p className="mb-3 text-xs text-slate-500">각 교육생 옆의 드롭다운으로 객실을 직접 변경할 수 있습니다 (수동조정).</p>
+        )}
+        <div className="mt-4 grid gap-3 xl:grid-cols-3">
+          {roomLabels.map((room) => (
+            <div key={room} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+              <div className="mb-3 flex justify-between">
+                <b>{room}</b>
+                <Badge color={rooms[room][0].gender === "남" ? "blue" : "purple"}>{rooms[room][0].gender} {rooms[room].length}/4</Badge>
+              </div>
+              {rooms[room].map((p) => (
+                <div key={p.id} className="mb-2 rounded-xl bg-white p-3 text-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <b>{p.name}</b>
+                      <span className="ml-2 text-xs text-slate-500">{p.region} · {p.age}세 · {p.rank}</span>
+                    </div>
+                    <select
+                      value={p.room}
+                      onChange={(e) => moveStudent(p.id, e.target.value)}
+                      className="shrink-0 rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-xs outline-none focus:ring-1 focus:ring-[#173F4F]"
+                    >
+                      {roomLabels.map((r) => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                  </div>
+                  {p.request && <div className="mt-1 text-xs text-amber-700">{p.request}</div>}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+        {!assigned && <div className="py-10 text-center text-sm text-slate-400">자동배정을 실행하면 결과가 여기 표시됩니다.</div>}
+      </Card>
+    </>
+  );
 }
 
 function MealPage({ mealMenu, setMealMenu, setNotices }) {
@@ -1458,10 +1556,11 @@ function BusSeatMap({ bus, mySeat, onSelect }) {
   );
 }
 
-function StudentMobile({ notices, setNotices, scheduleRows, mealMenu, busRows }) {
+function StudentMobile({ notices, setNotices, scheduleRows, mealMenu, busRows, roomAssignments, roomFinalized }) {
   const [tab, setTab] = useState("home");
   const [submitted, setSubmitted] = useState(false);
   const [roomText, setRoomText] = useState("동일객실: 교육생02");
+  const myRoom = roomFinalized ? roomAssignments.find((r) => r.id === "S001") : null;
   const [arrival, setArrival] = useState("광주송정역");
   const [arrivalDay, setArrivalDay] = useState("월요일");
   const [depart, setDepart] = useState("광주송정역");
@@ -1555,7 +1654,24 @@ function StudentMobile({ notices, setNotices, scheduleRows, mealMenu, busRows })
               )}
             </div>
           )}
-          {tab === "room" && <div><h2 className="font-black">객실 요청</h2>{submitted && <div className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">객실 요청이 제출되었습니다.</div>}<textarea value={roomText} onChange={(e) => setRoomText(e.target.value)} className="mt-3 min-h-28 w-full rounded-xl border border-slate-200 p-3" /><button onClick={() => setSubmitted(true)} className="mt-3 w-full rounded-xl bg-[#173F4F] py-3 font-bold text-white">제출</button></div>}
+          {tab === "room" && (
+            <div>
+              <h2 className="font-black">나의 객실</h2>
+              {myRoom ? (
+                <div className="mt-3 rounded-xl bg-[#173F4F] p-4 text-white">
+                  <div className="text-xs text-white/70">배정된 객실</div>
+                  <div className="mt-1 text-2xl font-black">{myRoom.room}</div>
+                  <div className="mt-1 text-xs text-white/70">{myRoom.gender} · 4인실</div>
+                </div>
+              ) : (
+                <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-500 ring-1 ring-slate-200">아직 객실이 배정되지 않았습니다. 담당자 확정 후 안내됩니다.</div>
+              )}
+              <h2 className="mt-5 font-black">객실 요청</h2>
+              {submitted && <div className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">객실 요청이 제출되었습니다.</div>}
+              <textarea value={roomText} onChange={(e) => setRoomText(e.target.value)} className="mt-3 min-h-28 w-full rounded-xl border border-slate-200 p-3" />
+              <button onClick={() => setSubmitted(true)} className="mt-3 w-full rounded-xl bg-[#173F4F] py-3 font-bold text-white">제출</button>
+            </div>
+          )}
           {tab === "notice" && (
             <div>
               <h2 className="mb-3 font-black">공지사항</h2>
@@ -1633,6 +1749,8 @@ export default function SmartCampusPrototype() {
   const [noticeOpen, setNoticeOpen] = useState(false);
   const [busRows, setBusRows] = useState(initialBusRows);
   const [roomOpen, setRoomOpen] = useState(true);
+  const [roomAssignments, setRoomAssignments] = useState([]);
+  const [roomFinalized, setRoomFinalized] = useState(false);
   const [scheduleRows, setScheduleRows] = useState(initialScheduleRows);
   const [mealMenu, setMealMenu] = useState(initialMealMenu);
   const [facilityRows, setFacilityRows] = useState(initialFacilityRows);
@@ -1668,6 +1786,6 @@ export default function SmartCampusPrototype() {
   const userId = session;
   const allowedScreens = getAllowedScreens(userId, accessRows);
   const unread = notices.filter((n) => n.unread).length;
-  const props = { userId, page, setPage, busRows, setBusRows, roomOpen, setRoomOpen, notices, setNotices, scheduleRows, setScheduleRows, mealMenu, setMealMenu, facilityRows, setFacilityRows, accessRows, setAccessRows, allowedScreens };
+  const props = { userId, page, setPage, busRows, setBusRows, roomOpen, setRoomOpen, roomAssignments, setRoomAssignments, roomFinalized, setRoomFinalized, notices, setNotices, scheduleRows, setScheduleRows, mealMenu, setMealMenu, facilityRows, setFacilityRows, accessRows, setAccessRows, allowedScreens };
   return <div className="min-h-screen bg-slate-100 text-slate-900"><TopBar userId={userId} unread={unread} onBell={() => setNoticeOpen(!noticeOpen)} onMenuClick={() => setMobileNavOpen(true)} onLogout={handleLogout} /><NotificationPanel open={noticeOpen} notices={notices} onClose={() => setNoticeOpen(false)} onReadAll={() => setNotices(notices.map((n) => ({ ...n, unread: false })))} /><div className="flex min-h-[calc(100vh-4rem)]"><Sidebar userId={userId} allowedScreens={allowedScreens} page={page} setPage={setPage} mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} onLogout={handleLogout} /><main className={cx("min-w-0 flex-1", userId === "student" ? "p-0 sm:p-4 lg:p-6" : "p-4 lg:p-6")}><AppContent {...props} /></main></div></div>;
 }
