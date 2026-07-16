@@ -56,26 +56,11 @@ const initialScheduleRows = [
   { id: 4, time: "15:10~17:00", title: "정보보안 및 개인정보보호", room: "전산실습실", day: "월" },
 ];
 
-const uploadedScheduleRows = [
-  { id: 5, time: "09:00~10:30", title: "입교식 및 안전교육", room: "대강당", day: "월" },
-  { id: 6, time: "10:40~12:00", title: "공단 이해 및 직무 기본", room: "A-201", day: "월" },
-  { id: 7, time: "13:00~15:00", title: "현장 민원응대 실습", room: "A-203", day: "월" },
-  { id: 8, time: "15:10~17:00", title: "정보보안 및 개인정보보호", room: "전산실습실", day: "월" },
-  { id: 9, time: "09:00~12:00", title: "업무시스템 실습", room: "전산실습실", day: "화" },
-];
-
 const initialMealMenu = {
   breakfast: "쌀밥, 북엇국, 계란찜, 김치, 과일",
   lunch: "현미밥, 제육볶음, 된장국, 상추겉절이, 깍두기",
   dinner: "카레라이스, 유부장국, 돈가스, 샐러드, 배추김치",
   updatedAt: "기본 식단",
-};
-
-const uploadedMealMenu = {
-  breakfast: "잡곡밥, 소고기무국, 두부조림, 김구이, 배추김치",
-  lunch: "보리밥, 닭갈비, 미역국, 오이무침, 깍두기",
-  dinner: "토마토스파게티, 크림스프, 함박스테이크, 그린샐러드, 피클",
-  updatedAt: "식단표_2026_신임자3기.xlsx 업로드 완료",
 };
 
 const noticesSeed = [
@@ -1067,7 +1052,7 @@ function parseScheduleEdit(raw) {
   const rows = [];
   let skipped = 0;
   for (const line of lines) {
-    const parts = line.split("\t").map((p) => p.trim());
+    const parts = (line.includes("\t") ? line.split("\t") : line.split(",")).map((p) => p.trim());
     if (parts.length !== 5 || parts.some((p) => !p)) {
       skipped++;
       continue;
@@ -1076,6 +1061,20 @@ function parseScheduleEdit(raw) {
     rows.push({ id: Date.now() + Math.random(), day, time: `${start}~${end}`, title, room });
   }
   return { rows, skipped };
+}
+
+function parseMealFile(raw) {
+  const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
+  const pick = (label) => {
+    const line = lines.find((l) => l.startsWith(label));
+    return line ? line.replace(new RegExp(`^${label}\\s*[:：]?\\s*`), "").trim() : "";
+  };
+  const breakfast = pick("조식");
+  const lunch = pick("중식");
+  const dinner = pick("석식");
+  if (breakfast && lunch && dinner) return { breakfast, lunch, dinner };
+  if (lines.length >= 3) return { breakfast: lines[0], lunch: lines[1], dinner: lines[2] };
+  return null;
 }
 
 function ScheduleEditor({ scheduleRows, setScheduleRows, setNotices }) {
@@ -1240,6 +1239,9 @@ function NoticePage({ notices, setNotices, scheduleRows, setScheduleRows }) {
   const [editingId, setEditingId] = useState(null);
   const [sent, setSent] = useState(false);
   const [uploaded, setUploaded] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const [uploadedFileName, setUploadedFileName] = useState("");
+  const scheduleFileRef = useRef(null);
 
   const resetForm = () => {
     setTitle("");
@@ -1272,17 +1274,34 @@ function NoticePage({ notices, setNotices, scheduleRows, setScheduleRows }) {
     if (editingId === id) resetForm();
   };
 
-  const uploadSchedule = () => {
-    setScheduleRows(uploadedScheduleRows);
-    setUploaded(true);
-    setNotices((prev) => [{ id: Date.now(), title: "시간표가 변경되었습니다.", body: "교육생 포털의 시간표/강의실 정보가 최신 자료로 반영되었습니다.", time: "방금", unread: true, urgent: false }, ...prev]);
+  const handleScheduleFile = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const { rows } = parseScheduleEdit(String(reader.result || ""));
+      if (rows.length === 0) {
+        setUploadError(`${file.name} 파일에서 시간표 데이터를 찾지 못했습니다. "요일,시작,종료,강의명,강의실" 형식의 CSV/TSV 파일을 올려주세요.`);
+        setUploaded(false);
+        return;
+      }
+      setScheduleRows(rows);
+      setUploaded(true);
+      setUploadedFileName(file.name);
+      setUploadError("");
+      setNotices((prev) => [{ id: Date.now(), title: "시간표가 변경되었습니다.", body: "교육생 포털의 시간표/강의실 정보가 최신 자료로 반영되었습니다.", time: "방금", unread: true, urgent: false }, ...prev]);
+    };
+    reader.readAsText(file);
   };
 
   return (
     <>
-      <PageTitle title="공지/안내" sub="직접 작성한 공지와 업로드한 시간표가 교육생 포털에 즉시 반영" action={<button onClick={uploadSchedule} className="rounded-xl bg-white px-4 py-2 text-sm font-bold ring-1 ring-slate-200">시간표 업로드</button>} />
+      <input ref={scheduleFileRef} type="file" accept=".csv,.tsv,.txt" className="hidden" onChange={handleScheduleFile} />
+      <PageTitle title="공지/안내" sub="직접 작성한 공지와 업로드한 시간표가 교육생 포털에 즉시 반영" action={<button onClick={() => scheduleFileRef.current?.click()} className="rounded-xl bg-white px-4 py-2 text-sm font-bold ring-1 ring-slate-200">시간표 업로드</button>} />
       {sent && <div className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">공지와 알림이 발송되었습니다.</div>}
-      {uploaded && <div className="mb-4 rounded-xl bg-sky-50 p-3 text-sm font-bold text-sky-700">시간표_신임자3기.xlsx 업로드 완료 · 교육생 화면에 즉시 반영</div>}
+      {uploaded && <div className="mb-4 rounded-xl bg-sky-50 p-3 text-sm font-bold text-sky-700">{uploadedFileName} 업로드 완료 · 교육생 화면에 즉시 반영</div>}
+      {uploadError && <div className="mb-4 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{uploadError}</div>}
       <div className="grid gap-5 xl:grid-cols-2">
         <Card>
           <div className="flex items-center justify-between">
@@ -1357,13 +1376,29 @@ function RoomPage({ roomOpen, setRoomOpen }) {
 function MealPage({ mealMenu, setMealMenu, setNotices }) {
   const [checked, setChecked] = useState(students.reduce((a, s) => ({ ...a, [s.id]: s.meal }), {}));
   const [uploaded, setUploaded] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const mealFileRef = useRef(null);
   const checkedCount = Object.values(checked).filter(Boolean).length;
-  const uploadMeal = () => {
-    setMealMenu(uploadedMealMenu);
-    setUploaded(true);
-    setNotices((prev) => [{ id: Date.now(), title: "식단표가 등록되었습니다.", body: "교육생 포털의 오늘 식단이 최신 식단표로 반영되었습니다.", time: "방금", unread: true, urgent: false }, ...prev]);
+  const handleMealFile = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const parsed = parseMealFile(String(reader.result || ""));
+      if (!parsed) {
+        setUploadError(`${file.name} 파일에서 식단 데이터를 찾지 못했습니다. "조식/중식/석식" 각 줄에 메뉴를 작성한 텍스트 파일을 올려주세요.`);
+        setUploaded(false);
+        return;
+      }
+      setMealMenu({ ...parsed, updatedAt: `${file.name} 업로드 완료` });
+      setUploaded(true);
+      setUploadError("");
+      setNotices((prev) => [{ id: Date.now(), title: "식단표가 등록되었습니다.", body: "교육생 포털의 오늘 식단이 최신 식단표로 반영되었습니다.", time: "방금", unread: true, urgent: false }, ...prev]);
+    };
+    reader.readAsText(file);
   };
-  return <><PageTitle title="식당관리" sub="식단표 업로드 및 식사 확인" action={<div className="flex flex-wrap gap-2"><button onClick={uploadMeal} className="rounded-xl bg-white px-4 py-2 text-sm font-bold ring-1 ring-slate-200">식단표 업로드</button><button onClick={() => setChecked(students.reduce((a, s) => ({ ...a, [s.id]: true }), {}))} className="rounded-xl bg-[#173F4F] px-4 py-2 text-sm font-bold text-white">QR 일괄 확인</button></div>} />{uploaded && <div className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">식단표 업로드 완료 · 교육생 포털에 즉시 반영되었습니다.</div>}<div className="grid gap-4 md:grid-cols-4"><KPI title="조식" value="92명" sub="예정" icon={Utensils} /><KPI title="중식" value="96명" sub="예정" icon={Utensils} /><KPI title="식사확인" value={`${checkedCount}/12`} sub="QR 확인" icon={QrCode} /><KPI title="식단표" value={mealMenu.updatedAt.includes("업로드") ? "등록" : "대기"} sub={mealMenu.updatedAt} icon={FileText} /></div><div className="mt-5 grid gap-5 xl:grid-cols-2"><Card><h2 className="mb-3 font-black">현재 식단표</h2>{Object.entries({ 조식: mealMenu.breakfast, 중식: mealMenu.lunch, 석식: mealMenu.dinner }).map(([k, v]) => <div key={k} className="mb-2 rounded-xl bg-slate-50 p-3"><b>{k}</b><p className="text-sm text-slate-600">{v}</p></div>)}</Card><Card><h2 className="mb-3 font-black">식사 확인</h2><div className="overflow-x-auto"><table className="w-full text-left text-sm"><tbody className="divide-y divide-slate-100">{students.slice(0, 8).map((s) => <tr key={s.id}><td className="p-3 font-bold">{s.name}</td><td className="p-3">중식</td><td className="p-3">{checked[s.id] ? <Badge color="green">확인</Badge> : <Badge color="amber">미확인</Badge>}</td><td className="p-3 text-right"><button onClick={() => setChecked({ ...checked, [s.id]: !checked[s.id] })} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold">{checked[s.id] ? "취소" : "확인"}</button></td></tr>)}</tbody></table></div></Card></div></>;
+  return <><input ref={mealFileRef} type="file" accept=".csv,.tsv,.txt" className="hidden" onChange={handleMealFile} /><PageTitle title="식당관리" sub="식단표 업로드 및 식사 확인" action={<div className="flex flex-wrap gap-2"><button onClick={() => mealFileRef.current?.click()} className="rounded-xl bg-white px-4 py-2 text-sm font-bold ring-1 ring-slate-200">식단표 업로드</button><button onClick={() => setChecked(students.reduce((a, s) => ({ ...a, [s.id]: true }), {}))} className="rounded-xl bg-[#173F4F] px-4 py-2 text-sm font-bold text-white">QR 일괄 확인</button></div>} />{uploaded && <div className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">{mealMenu.updatedAt} · 교육생 포털에 즉시 반영되었습니다.</div>}{uploadError && <div className="mb-4 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{uploadError}</div>}<div className="grid gap-4 md:grid-cols-4"><KPI title="조식" value="92명" sub="예정" icon={Utensils} /><KPI title="중식" value="96명" sub="예정" icon={Utensils} /><KPI title="식사확인" value={`${checkedCount}/12`} sub="QR 확인" icon={QrCode} /><KPI title="식단표" value={mealMenu.updatedAt.includes("업로드") ? "등록" : "대기"} sub={mealMenu.updatedAt} icon={FileText} /></div><div className="mt-5 grid gap-5 xl:grid-cols-2"><Card><h2 className="mb-3 font-black">현재 식단표</h2>{Object.entries({ 조식: mealMenu.breakfast, 중식: mealMenu.lunch, 석식: mealMenu.dinner }).map(([k, v]) => <div key={k} className="mb-2 rounded-xl bg-slate-50 p-3"><b>{k}</b><p className="text-sm text-slate-600">{v}</p></div>)}</Card><Card><h2 className="mb-3 font-black">식사 확인</h2><div className="overflow-x-auto"><table className="w-full text-left text-sm"><tbody className="divide-y divide-slate-100">{students.slice(0, 8).map((s) => <tr key={s.id}><td className="p-3 font-bold">{s.name}</td><td className="p-3">중식</td><td className="p-3">{checked[s.id] ? <Badge color="green">확인</Badge> : <Badge color="amber">미확인</Badge>}</td><td className="p-3 text-right"><button onClick={() => setChecked({ ...checked, [s.id]: !checked[s.id] })} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold">{checked[s.id] ? "취소" : "확인"}</button></td></tr>)}</tbody></table></div></Card></div></>;
 }
 
 function FacilityPage({ facilityRows, setFacilityRows, assignedFields }) {
