@@ -159,19 +159,50 @@ const kpiCompareData = [
 
 const rankOrder = { 주임: 1, 대리: 2, 과장: 3, 차장: 4 };
 
+const DORM_BUILDINGS = ["A", "B", "C", "S"];
+const REGION_BUILDING = { 광주전남: "A", 부산경남: "B", 대전충청: "C", 서울강원: "S" };
+const ACCESSIBLE_ROOMS = { A: "A101호", B: "B101호", C: "C101호", S: "S101호" };
+
+function buildingFor(student) {
+  return REGION_BUILDING[student.region] || DORM_BUILDINGS[0];
+}
+
+// 1) 동일객실 요청을 먼저 짝지어 같은 방에 배정하고, 2) 나머지는 교육동(지역본부 기준)별로 자동배정한다.
 function autoAssignRoom(list) {
-  const sorted = [...list].sort((a, b) => {
-    if (a.gender !== b.gender) return a.gender.localeCompare(b.gender, "ko");
-    if (a.region !== b.region) return a.region.localeCompare(b.region, "ko");
+  const byName = Object.fromEntries(list.map((s) => [s.name, s]));
+  const visited = new Set();
+  const pairs = [];
+  list.forEach((s) => {
+    if (visited.has(s.id)) return;
+    const m = s.request && s.request.match(/^동일객실:\s*(.+)$/);
+    const partner = m && byName[m[1].trim()];
+    if (partner && !visited.has(partner.id) && partner.gender === s.gender) {
+      pairs.push([s, partner]);
+      visited.add(s.id);
+      visited.add(partner.id);
+    }
+  });
+  const singles = list.filter((s) => !visited.has(s.id));
+  singles.sort((a, b) => {
     if (a.age !== b.age) return a.age - b.age;
     return (rankOrder[a.rank] || 99) - (rankOrder[b.rank] || 99);
   });
-  const count = { 남: 0, 여: 0 };
-  return sorted.map((s) => {
-    const base = s.gender === "남" ? 201 : 301;
-    const room = `${base + Math.floor(count[s.gender]++ / 4)}호`;
-    return { ...s, room };
+
+  const queues = {};
+  DORM_BUILDINGS.forEach((b) => (queues[b] = { 남: [], 여: [] }));
+  pairs.forEach(([a, b]) => queues[buildingFor(a)][a.gender].push(a, b));
+  singles.forEach((s) => queues[buildingFor(s)][s.gender].push(s));
+
+  const result = [];
+  DORM_BUILDINGS.forEach((bld) => {
+    ["남", "여"].forEach((gender) => {
+      const base = gender === "남" ? 201 : 301;
+      queues[bld][gender].forEach((s, i) => {
+        result.push({ ...s, building: bld, room: `${bld}${base + Math.floor(i / 4)}호` });
+      });
+    });
   });
+  return result;
 }
 
 function Badge({ children, color = "slate" }) {
@@ -1369,7 +1400,8 @@ function RoomPage({ roomOpen, setRoomOpen, roomAssignments, setRoomAssignments, 
   const assigned = roomAssignments.length > 0;
   const rooms = roomAssignments.reduce((a, s) => ((a[s.room] = [...(a[s.room] || []), s]), a), {});
   const roomLabels = Object.keys(rooms).sort();
-  const exceptionRequests = students.filter((s) => s.request);
+  const pairRequests = students.filter((s) => /^동일객실:/.test(s.request || ""));
+  const otherRequests = students.filter((s) => s.request && !/^동일객실:/.test(s.request));
 
   const openPeriod = () => {
     setRoomOpen(true);
@@ -1406,21 +1438,39 @@ function RoomPage({ roomOpen, setRoomOpen, roomAssignments, setRoomAssignments, 
       <div className="grid gap-4 md:grid-cols-4">
         <KPI title="신청상태" value={roomOpen ? "진행중" : "종료"} sub="객실담당자 권한" icon={CalendarDays} />
         <KPI title="신청인원" value={`${students.length}명`} sub="전체 교육생" icon={Users} />
-        <KPI title="예외요청" value={`${exceptionRequests.length}건`} sub="동일객실/건강상" icon={FileText} />
-        <KPI title="배정상태" value={roomFinalized ? "확정" : assigned ? "검토" : "대기"} sub="남녀 분리" icon={BedDouble} />
+        <KPI title="예외요청" value={`${pairRequests.length + otherRequests.length}건`} sub="동일객실/건강상" icon={FileText} />
+        <KPI title="배정상태" value={roomFinalized ? "확정" : assigned ? "검토" : "대기"} sub="교육동·남녀 분리" icon={BedDouble} />
       </div>
 
-      {exceptionRequests.length > 0 && (
+      {(pairRequests.length > 0 || otherRequests.length > 0) && (
         <Card className="mt-5">
           <h2 className="mb-3 font-black">예외요청 내역</h2>
-          <div className="space-y-2">
-            {exceptionRequests.map((s) => (
-              <div key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-amber-50 p-3 text-sm ring-1 ring-amber-100">
-                <span><b>{s.name}</b><span className="ml-2 text-xs text-slate-500">{s.region} · {s.rank}</span></span>
-                <span className="font-bold text-amber-700">{s.request}</span>
+          {pairRequests.length > 0 && (
+            <>
+              <div className="mb-1.5 text-xs font-bold text-slate-500">동일객실 요청 (자동배정 시 자동 반영)</div>
+              <div className="mb-3 space-y-2">
+                {pairRequests.map((s) => (
+                  <div key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-sky-50 p-3 text-sm ring-1 ring-sky-100">
+                    <span><b>{s.name}</b><span className="ml-2 text-xs text-slate-500">{s.region} · {s.rank}</span></span>
+                    <span className="font-bold text-sky-700">{s.request}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          )}
+          {otherRequests.length > 0 && (
+            <>
+              <div className="mb-1.5 text-xs font-bold text-slate-500">그 외 요청 (수동조정으로 반영 필요)</div>
+              <div className="space-y-2">
+                {otherRequests.map((s) => (
+                  <div key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-amber-50 p-3 text-sm ring-1 ring-amber-100">
+                    <span><b>{s.name}</b><span className="ml-2 text-xs text-slate-500">{s.region} · {s.rank}</span></span>
+                    <span className="font-bold text-amber-700">{s.request}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </Card>
       )}
 
@@ -1435,36 +1485,48 @@ function RoomPage({ roomOpen, setRoomOpen, roomAssignments, setRoomAssignments, 
         {roomOpen && <div className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-700">신청기간 종료 후 자동배정을 실행할 수 있습니다.</div>}
         {roomFinalized && <div className="mb-3 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">배정이 확정되어 교육생 포털에 표시됩니다.</div>}
         {assigned && (
-          <p className="mb-3 text-xs text-slate-500">각 교육생 옆의 드롭다운으로 객실을 직접 변경할 수 있습니다 (수동조정).</p>
+          <p className="mb-3 text-xs text-slate-500">동일객실 요청은 자동배정 시 같은 방으로 먼저 배정되고, 나머지 인원은 지역본부 기준 교육동(A·B·C·S동)별로 자동배정됩니다. 각 교육생 옆 드롭다운으로 객실을 직접 변경할 수 있습니다 (수동조정).</p>
         )}
-        <div className="mt-4 grid gap-3 xl:grid-cols-3">
-          {roomLabels.map((room) => (
-            <div key={room} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
-              <div className="mb-3 flex justify-between">
-                <b>{room}</b>
-                <Badge color={rooms[room][0].gender === "남" ? "blue" : "purple"}>{rooms[room][0].gender} {rooms[room].length}/4</Badge>
+        {assigned && DORM_BUILDINGS.map((bld) => {
+          const buildingRoomLabels = roomLabels.filter((r) => r.startsWith(bld));
+          if (buildingRoomLabels.length === 0) return null;
+          return (
+            <div key={bld} className="mt-4">
+              <div className="mb-2 flex items-center gap-2">
+                <h3 className="font-black">{bld}동</h3>
+                <Badge color="slate">장애인실(고정): {ACCESSIBLE_ROOMS[bld]}</Badge>
               </div>
-              {rooms[room].map((p) => (
-                <div key={p.id} className="mb-2 rounded-xl bg-white p-3 text-sm">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <b>{p.name}</b>
-                      <span className="ml-2 text-xs text-slate-500">{p.region} · {p.age}세 · {p.rank}</span>
+              <div className="grid gap-3 xl:grid-cols-3">
+                {buildingRoomLabels.map((room) => (
+                  <div key={room} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+                    <div className="mb-3 flex justify-between">
+                      <b>{room}</b>
+                      <Badge color={rooms[room][0].gender === "남" ? "blue" : "purple"}>{rooms[room][0].gender} {rooms[room].length}/4</Badge>
                     </div>
-                    <select
-                      value={p.room}
-                      onChange={(e) => moveStudent(p.id, e.target.value)}
-                      className="shrink-0 rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-xs outline-none focus:ring-1 focus:ring-[#173F4F]"
-                    >
-                      {roomLabels.map((r) => <option key={r} value={r}>{r}</option>)}
-                    </select>
+                    {rooms[room].map((p) => (
+                      <div key={p.id} className="mb-2 rounded-xl bg-white p-3 text-sm">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <b>{p.name}</b>
+                            <span className="ml-2 text-xs text-slate-500">{p.region} · {p.age}세 · {p.rank}</span>
+                          </div>
+                          <select
+                            value={p.room}
+                            onChange={(e) => moveStudent(p.id, e.target.value)}
+                            className="shrink-0 rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-xs outline-none focus:ring-1 focus:ring-[#173F4F]"
+                          >
+                            {roomLabels.map((r) => <option key={r} value={r}>{r}</option>)}
+                          </select>
+                        </div>
+                        {p.request && <div className="mt-1 text-xs text-amber-700">{p.request}</div>}
+                      </div>
+                    ))}
                   </div>
-                  {p.request && <div className="mt-1 text-xs text-amber-700">{p.request}</div>}
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          ))}
-        </div>
+          );
+        })}
         {!assigned && <div className="py-10 text-center text-sm text-slate-400">자동배정을 실행하면 결과가 여기 표시됩니다.</div>}
       </Card>
     </>
